@@ -2,6 +2,7 @@
 #define VULKANO_ENABLE_DEFAULT_VALIDATION_LAYERS
 #define VULKANO_ENABLE_DEFAULT_GRAPHICS_EXTENSIONS
 #define VULKANO_INTEGRATE_SDL
+#define SDL_MAIN_HANDLED
 
 #include "imgui_wrapper.h"
 #include "vulkano.h"
@@ -12,7 +13,7 @@ main(void)
     VulkanoError error = 0;
     struct vulkano_sdl vksdl = vulkano_sdl_create(
         (struct vulkano_config){0},
-        (struct sdl_config){.window_flags = SDL_WINDOW_RESIZABLE},
+        (struct sdl_config){.left=SDL_WINDOWPOS_CENTERED,.top=SDL_WINDOWPOS_CENTERED,.window_flags = SDL_WINDOW_RESIZABLE,},
         &error
     );
     if (error) exit(EXIT_FAILURE);
