@@ -28,15 +28,17 @@ imgui_init(struct vulkano* vk, SDL_Window* window, VkCommandBuffer cmd)
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
-        {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
+        {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000},
+    };
     VkDescriptorPoolCreateInfo pool_info = {};
-    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+    pool_info.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets       = 1000 * IM_ARRAYSIZE(pool_sizes);
     pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
-    pool_info.pPoolSizes = pool_sizes;
-    VkResult result =
-        vkCreateDescriptorPool(vk->device, &pool_info, NULL, &imgui_descriptor_pool);
+    pool_info.pPoolSizes    = pool_sizes;
+    VkResult result         = vkCreateDescriptorPool(
+        vk->device, &pool_info, NULL, &imgui_descriptor_pool
+    );
     check_result(result);
 
     IMGUI_CHECKVERSION();
@@ -47,16 +49,16 @@ imgui_init(struct vulkano* vk, SDL_Window* window, VkCommandBuffer cmd)
     ImGui_ImplSDL2_InitForVulkan(window);
 
     ImGui_ImplVulkan_InitInfo imvk = {0};
-    imvk.Instance = vk->instance;
-    imvk.PhysicalDevice = vk->gpu.handle;
-    imvk.Device = vk->device;
-    imvk.QueueFamily = vk->gpu.graphics_queue_family;
-    imvk.Queue = vk->gpu.graphics_queue;
-    imvk.DescriptorPool = imgui_descriptor_pool;
-    imvk.MinImageCount = vk->swapchain.image_count;
-    imvk.ImageCount = vk->swapchain.image_count;
-    imvk.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    imvk.CheckVkResultFn = check_result;
+    imvk.Instance                  = vk->instance;
+    imvk.PhysicalDevice            = vk->gpu.handle;
+    imvk.Device                    = vk->device;
+    imvk.QueueFamily               = vk->gpu.graphics_queue_family;
+    imvk.Queue                     = vk->gpu.graphics_queue;
+    imvk.DescriptorPool            = imgui_descriptor_pool;
+    imvk.MinImageCount             = vk->swapchain.image_count;
+    imvk.ImageCount                = vk->swapchain.image_count;
+    imvk.MSAASamples               = VK_SAMPLE_COUNT_1_BIT;
+    imvk.CheckVkResultFn           = check_result;
 
     ImGui_ImplVulkan_Init(&imvk, vk->swapchain.render_pass);
     ImGui_ImplVulkan_CreateFontsTexture(cmd);
@@ -67,8 +69,8 @@ imgui_process_event(const SDL_Event* event)
 {
     ImGui_ImplSDL2_ProcessEvent(event);
     ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse &&
-        (event->type == SDL_MOUSEBUTTONDOWN || event->type == SDL_MOUSEBUTTONUP)) {
+    if (io.WantCaptureMouse && (event->type == SDL_MOUSEBUTTONDOWN ||
+                                event->type == SDL_MOUSEBUTTONUP)) {
         return true;
     }
     if (io.WantCaptureKeyboard &&

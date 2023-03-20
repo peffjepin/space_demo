@@ -1,0 +1,26 @@
+BasedOnStyle: google
+SortIncludes: false
+
+IndentWidth: 4
+ColumnLimit: 80
+
+PointerAlignment: Left
+AlignAfterOpenBracket: BlockIndent
+AlignEscapedNewlines: Right
+AlignTrailingComments: true
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
+
+BinPackArguments: false
+BinPackParameters: false
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterFunction: true
+    BeforeElse: true
+AlwaysBreakAfterReturnType: TopLevelDefinitions
+
+SeparateDefinitionBlocks: Always
+MaxEmptyLinesToKeep: 2
+
+AllowShortCaseLabelsOnASingleLine: true
