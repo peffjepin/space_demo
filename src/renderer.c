@@ -13,8 +13,14 @@
 
 #define CONCURRENT_FRAMES 2
 
+struct ubo {
+    struct mat4 model;
+    struct mat4 view;
+    struct mat4 proj;
+};
+
 #define TRANSFER_BUFFER_SIZE                                                   \
-    (PLANET_MAX_VERTICES * sizeof(struct vec3) * 2 + 2 * sizeof(struct mat4) + \
+    (PLANET_MAX_VERTICES * sizeof(struct vec3) * 2 + sizeof(struct ubo) +      \
      sizeof(uint32_t) * PLANET_MAX_INDICES + 10000)
 
 struct demo_renderer {
@@ -23,12 +29,7 @@ struct demo_renderer {
     struct vec3 camera_position;
     struct vec3 camera_direction;
 
-    struct {
-        struct mat4 model;
-        struct mat4 view;
-        struct mat4 proj;
-    } ubo;
-
+    struct ubo  ubo;
     struct vec3 rotation;
 
     size_t                ubo_size_per_frame;
@@ -56,8 +57,9 @@ struct demo_renderer {
     struct transfer_buffer transfer_buffers[CONCURRENT_FRAMES];
 
     struct {
-        struct planet* planet;
-        uint64_t       id;
+        size_t   vertex_count;
+        size_t   index_count;
+        uint64_t iteration;
     } buffered_planets[CONCURRENT_FRAMES];
 };
 
@@ -136,7 +138,7 @@ renderer_create(struct vulkano* vk)
         (float)renderer->vk->swapchain.extent.width /
             (float)renderer->vk->swapchain.extent.height,
         0.1f,
-        100.0f
+        1000.0f
     );
     renderer->rotation  = (struct vec3){0.0f, 0.0f, 0.0f};
     renderer->ubo.model = model_matrix(
@@ -208,6 +210,10 @@ renderer_create(struct vulkano* vk)
 
     // create buffers
     //
+    // adding a bit of padding to the buffers so when they are at capacity the
+    // transfer buffer's alignment wont cause a slight overshoot
+    static const size_t BUFFER_PADDING = 256;
+
     const size_t per_frame_alignment =
         vk->gpu.properties.limits.minUniformBufferOffsetAlignment;
 
@@ -216,8 +222,8 @@ renderer_create(struct vulkano* vk)
     renderer->vertices_buffer = vulkano_buffer_create(
         vk,
         (struct VkBufferCreateInfo){
-            .size =
-                renderer->vertices_buffer_size_per_frame * CONCURRENT_FRAMES,
+            .size = BUFFER_PADDING + renderer->vertices_buffer_size_per_frame *
+                                         CONCURRENT_FRAMES,
             .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         },
@@ -230,7 +236,8 @@ renderer_create(struct vulkano* vk)
     renderer->normals_buffer = vulkano_buffer_create(
         vk,
         (struct VkBufferCreateInfo){
-            .size = renderer->normals_buffer_size_per_frame * CONCURRENT_FRAMES,
+            .size = BUFFER_PADDING +
+                    renderer->normals_buffer_size_per_frame * CONCURRENT_FRAMES,
             .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         },
@@ -243,7 +250,8 @@ renderer_create(struct vulkano* vk)
     renderer->indices_buffer = vulkano_buffer_create(
         vk,
         (struct VkBufferCreateInfo){
-            .size = renderer->indices_buffer_size_per_frame * CONCURRENT_FRAMES,
+            .size = BUFFER_PADDING +
+                    renderer->indices_buffer_size_per_frame * CONCURRENT_FRAMES,
             .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                      VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
         },
@@ -256,7 +264,8 @@ renderer_create(struct vulkano* vk)
     renderer->uniform_buffer = vulkano_buffer_create(
         vk,
         (struct VkBufferCreateInfo){
-            .size  = renderer->ubo_size_per_frame * CONCURRENT_FRAMES,
+            .size = BUFFER_PADDING +
+                    renderer->ubo_size_per_frame * CONCURRENT_FRAMES,
             .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         },
@@ -542,7 +551,7 @@ renderer_draw(
     struct demo_renderer* renderer,
     VkCommandBuffer       cmd,
     size_t                frame_index,
-    struct planet*        planet
+    Planet                planet
 )
 {
     VulkanoError error = 0;
@@ -552,9 +561,9 @@ renderer_draw(
         (float)renderer->vk->swapchain.extent.width /
             (float)renderer->vk->swapchain.extent.height,
         0.1f,
-        100.0f
+        1000.0f
     );
-    renderer->rotation.y += 0.004;
+    renderer->rotation.y += 0.001;
     renderer->ubo.model = model_matrix(
         (struct vec3){0.0f, 0.0f, 0.0f},
         (struct vec3){1.0f, 1.0f, 1.0f},
@@ -571,15 +580,20 @@ renderer_draw(
         (sizeof renderer->ubo),
         &error
     );
-    if (renderer->buffered_planets[frame_index].planet != planet ||
-        renderer->buffered_planets[frame_index].id != planet->id) {
+
+    struct planet_mesh mesh = planet_acquire_mesh(planet);
+
+    bool planet_requires_transfer =
+        renderer->buffered_planets[frame_index].iteration != mesh.iteration;
+
+    if (planet_requires_transfer) {
         transfer_buffer_copy(
             renderer->vk,
             transfer,
             renderer->vertices_buffer,
             renderer->vertices_buffer_size_per_frame * frame_index,
-            planet->vertices,
-            (sizeof *planet->vertices) * planet->vertex_count,
+            mesh.vertices,
+            (sizeof *mesh.vertices) * mesh.vertex_count,
             &error
         );
         transfer_buffer_copy(
@@ -587,8 +601,8 @@ renderer_draw(
             transfer,
             renderer->normals_buffer,
             renderer->normals_buffer_size_per_frame * frame_index,
-            planet->normals,
-            (sizeof *planet->normals) * planet->vertex_count,
+            mesh.normals,
+            (sizeof *mesh.normals) * mesh.vertex_count,
             &error
         );
         transfer_buffer_copy(
@@ -596,13 +610,18 @@ renderer_draw(
             transfer,
             renderer->indices_buffer,
             renderer->indices_buffer_size_per_frame * frame_index,
-            planet->indices,
-            (sizeof *planet->indices) * planet->index_count,
+            mesh.indices,
+            (sizeof *mesh.indices) * mesh.index_count,
             &error
         );
-        renderer->buffered_planets[frame_index].planet = planet;
-        renderer->buffered_planets[frame_index].id     = planet->id;
+        renderer->buffered_planets[frame_index].vertex_count =
+            mesh.vertex_count;
+        renderer->buffered_planets[frame_index].index_count = mesh.index_count;
+        renderer->buffered_planets[frame_index].iteration   = mesh.iteration;
     }
+
+    planet_release_mesh(planet);
+
     transfer_buffer_flush_async(renderer->vk, transfer, &error);
     if (error) exit(EXIT_FAILURE);
 
@@ -641,7 +660,9 @@ renderer_draw(
     VkRect2D   scissor  = VULKANO_SCISSOR(renderer->vk);
     vkCmdSetViewport(cmd, 0, 1, &viewport);
     vkCmdSetScissor(cmd, 0, 1, &scissor);
-    vkCmdDrawIndexed(cmd, planet->index_count, 1, 0, 0, 0);
+    vkCmdDrawIndexed(
+        cmd, renderer->buffered_planets[frame_index].index_count, 1, 0, 0, 0
+    );
 
     static const VkPipelineStageFlags STAGE_MASK =
         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;

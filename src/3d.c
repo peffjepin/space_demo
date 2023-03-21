@@ -36,6 +36,26 @@ vec3add(struct vec3 a, struct vec3 b)
 }
 
 struct vec3
+vec3adds(struct vec3 vector, float scalar)
+{
+    return (struct vec3){
+        vector.x + scalar,
+        vector.y + scalar,
+        vector.z + scalar,
+    };
+}
+
+struct vec3
+vec3muls(struct vec3 vector, float scalar)
+{
+    return (struct vec3){
+        vector.x * scalar,
+        vector.y * scalar,
+        vector.z * scalar,
+    };
+}
+
+struct vec3
 vec3sub(struct vec3 a, struct vec3 b)
 {
     return (struct vec3){
@@ -65,6 +85,14 @@ vec3isub(struct vec3* existing, struct vec3 diff)
     existing->x -= diff.x;
     existing->y -= diff.y;
     existing->z -= diff.z;
+}
+
+void
+vec3imuls(struct vec3* vector, float scalar)
+{
+    vector->x *= scalar;
+    vector->y *= scalar;
+    vector->z *= scalar;
 }
 
 struct mat4

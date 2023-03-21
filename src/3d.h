@@ -6,14 +6,17 @@ struct vec3 {
     float y;
     float z;
 };
- 
+
 struct vec3 vec3cross(struct vec3, struct vec3);
 struct vec3 vec3add(struct vec3, struct vec3);
 struct vec3 vec3sub(struct vec3, struct vec3);
+struct vec3 vec3adds(struct vec3, float scalar);
+struct vec3 vec3muls(struct vec3, float scalar);
 
 // in place operations
 void vec3iadd(struct vec3*, struct vec3);
 void vec3isub(struct vec3*, struct vec3);
+void vec3imuls(struct vec3*, float scalar);
 void vec3norm(struct vec3*);
 
 struct mat4 {

@@ -12,7 +12,7 @@ void         renderer_set_camera_position(Renderer, float x, float y, float z);
 void         renderer_set_camera_direction(Renderer, float x, float y, float z);
 void         renderer_set_camera_target(Renderer, float x, float y, float z);
 VkSubmitInfo renderer_draw(
-    Renderer, VkCommandBuffer cmd, size_t frame_index, struct planet* planet
+    Renderer, VkCommandBuffer cmd, size_t frame_index, Planet
 );
 
 

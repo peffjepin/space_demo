@@ -15,9 +15,11 @@ main(void)
     struct vulkano_sdl vksdl = vulkano_sdl_create(
         (struct vulkano_config){0},
         (struct sdl_config){
-            .left         = 100,
-            .top          = 100,
-            .window_flags = SDL_WINDOW_RESIZABLE,
+            // .window_flags = SDL_WINDOW_RESIZABLE,
+            .left   = 100,
+            .top    = 100,
+            .width  = 1920,
+            .height = 1080,
         },
         &error
     );
@@ -33,11 +35,11 @@ main(void)
     vulkano_submit_single_use_command_buffer(&vksdl.vk, init_cmd, &error);
     if (error) exit(EXIT_FAILURE);
 
-    static const float PLANET_RADIUS = 10.0f;
-    renderer_set_camera_position(renderer, 0.0f, 0.0f, -PLANET_RADIUS * 2.50);
+    renderer_set_camera_position(renderer, 0.0f, 0.0f, -PLANET_RADIUS * 2);
     renderer_set_camera_target(renderer, 0.0f, 0.0f, 0.0f);
 
-    struct planet* planet = planet_create(50, PLANET_RADIUS);
+    static const uint32_t INITIAL_SUBDIVISIONS = PLANET_MAX_SUBDIVISIONS / 3;
+    struct planet*        planet = planet_create(INITIAL_SUBDIVISIONS);
 
     while (1) {
         SDL_Event event;
@@ -68,8 +70,45 @@ main(void)
         VkCommandBuffer cmd = vkframe.state.render_command;
         VkSubmitInfo    submit_info =
             renderer_draw(renderer, cmd, vkframe.index, planet);
-        imgui_begin_frame();
-        imgui_end_frame(cmd);
+
+        imgui_start_frame();
+
+        imgui_set_next_window_position_pivot(
+            (float)vksdl.vk.swapchain.extent.width, 0.0f, 1.0f, 0.0f
+        );
+        imgui_set_next_window_size_constraints(
+            0.0f,
+            (float)vksdl.vk.swapchain.extent.height,
+            10000.f,
+            (float)vksdl.vk.swapchain.extent.height
+        );
+        imgui_begin(
+            "control panel",
+            IMGUI_WINDOW_ALWAYS_AUTO_RESIZE | IMGUI_WINDOW_NO_RESIZE
+        );
+
+        struct planet_mesh mesh = planet_acquire_mesh(planet);
+        planet_release_mesh(planet);
+        imgui_text("vertex_count: %d", mesh.vertex_count);
+
+        static int previous_subdivisions = INITIAL_SUBDIVISIONS;
+        static int subdivisions          = INITIAL_SUBDIVISIONS;
+        imgui_slideri(
+            "Subdivisions", &subdivisions, 1, PLANET_MAX_SUBDIVISIONS
+        );
+        if (subdivisions != previous_subdivisions) {
+            previous_subdivisions = subdivisions;
+            planet_set_subdivisions(planet, subdivisions);
+        }
+
+        static float slider1 = 0.0f;
+        static float slider2 = 0.0f;
+        imgui_sliderf("Slider 1", &slider1, 0.0f, 1.0f);
+        imgui_sliderf("Slider 2", &slider2, 0.0f, 1.0f);
+
+        imgui_end();
+
+        imgui_finish_frame(cmd);
 
         vulkano_frame_submit(&vksdl.vk, &vkframe, submit_info, &error);
         if (error) goto teardown;

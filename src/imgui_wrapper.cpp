@@ -4,6 +4,8 @@
 #include "../imgui/imgui_impl_sdl2.h"
 #include "../imgui/imgui_impl_vulkan.h"
 
+#include <stdarg.h>
+
 VkDescriptorPool imgui_descriptor_pool;
 
 static void
@@ -64,6 +66,16 @@ imgui_init(struct vulkano* vk, SDL_Window* window, VkCommandBuffer cmd)
     ImGui_ImplVulkan_CreateFontsTexture(cmd);
 }
 
+void
+imgui_teardown(struct vulkano* vk)
+{
+    vkDeviceWaitIdle(vk->device);
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+    vkDestroyDescriptorPool(vk->device, imgui_descriptor_pool, NULL);
+}
+
 bool
 imgui_process_event(const SDL_Event* event)
 {
@@ -82,16 +94,15 @@ imgui_process_event(const SDL_Event* event)
 }
 
 void
-imgui_begin_frame(void)
+imgui_start_frame(void)
 {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
-    ImGui::ShowDemoWindow();
 }
 
 void
-imgui_end_frame(VkCommandBuffer cmd)
+imgui_finish_frame(VkCommandBuffer cmd)
 {
     ImGui::EndFrame();
     ImGui::Render();
@@ -100,11 +111,71 @@ imgui_end_frame(VkCommandBuffer cmd)
 }
 
 void
-imgui_teardown(struct vulkano* vk)
+imgui_begin(const char* name, enum imgui_wrapper_window_flags wrapper_flags)
 {
-    vkDeviceWaitIdle(vk->device);
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
-    ImGui::DestroyContext();
-    vkDestroyDescriptorPool(vk->device, imgui_descriptor_pool, NULL);
+    ImGuiWindowFlags flags = 0;
+    if (wrapper_flags & IMGUI_WINDOW_ALWAYS_AUTO_RESIZE)
+        flags |= ImGuiWindowFlags_AlwaysAutoResize;
+    if (wrapper_flags & IMGUI_WINDOW_NO_RESIZE)
+        flags |= ImGuiWindowFlags_NoResize;
+    ImGui::Begin(name, NULL, flags);
+}
+
+void
+imgui_end(void)
+{
+    ImGui::End();
+}
+
+void
+imgui_text(const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    ImGui::TextV(fmt, args);
+    va_end(args);
+}
+
+void
+imgui_set_next_window_size(float width, float height)
+{
+    ImGui::SetNextWindowSize(ImVec2(width, height));
+}
+
+void
+imgui_set_next_window_size_constraints(
+    float min_width, float min_height, float max_width, float max_height
+)
+{
+    ImGui::SetNextWindowSizeConstraints(
+        ImVec2(min_width, min_height), ImVec2(max_width, max_height)
+    );
+}
+
+void
+imgui_set_next_window_position(float left, float top)
+{
+    ImGui::SetNextWindowPos(ImVec2(left, top));
+}
+
+void
+imgui_set_next_window_position_pivot(
+    float left, float top, float pivot_x, float pivot_y
+)
+{
+    ImGui::SetNextWindowPos(
+        ImVec2(left, top), ImGuiCond_Always, ImVec2(pivot_x, pivot_y)
+    );
+}
+
+void
+imgui_sliderf(const char* name, float* value, float min, float max)
+{
+    ImGui::SliderFloat(name, value, min, max);
+}
+
+void
+imgui_slideri(const char* name, int* value, int min, int max)
+{
+    ImGui::SliderInt(name, value, min, max);
 }
