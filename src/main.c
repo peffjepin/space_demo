@@ -33,11 +33,11 @@ main(void)
     vulkano_submit_single_use_command_buffer(&vksdl.vk, init_cmd, &error);
     if (error) exit(EXIT_FAILURE);
 
-    static const float PLANET_RADIUS = 5.0f;
-    renderer_set_camera_position(renderer, 0.0f, 0.0f, -PLANET_RADIUS * 2);
+    static const float PLANET_RADIUS = 10.0f;
+    renderer_set_camera_position(renderer, 0.0f, 0.0f, -PLANET_RADIUS * 2.50);
     renderer_set_camera_target(renderer, 0.0f, 0.0f, 0.0f);
 
-    struct planet* planet = planet_create(10, PLANET_RADIUS);
+    struct planet* planet = planet_create(50, PLANET_RADIUS);
 
     while (1) {
         SDL_Event event;

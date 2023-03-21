@@ -24,9 +24,12 @@ struct demo_renderer {
     struct vec3 camera_direction;
 
     struct {
+        struct mat4 model;
         struct mat4 view;
         struct mat4 proj;
     } ubo;
+
+    struct vec3 rotation;
 
     size_t                ubo_size_per_frame;
     struct vulkano_buffer uniform_buffer;
@@ -134,6 +137,12 @@ renderer_create(struct vulkano* vk)
             (float)renderer->vk->swapchain.extent.height,
         0.1f,
         100.0f
+    );
+    renderer->rotation  = (struct vec3){0.0f, 0.0f, 0.0f};
+    renderer->ubo.model = model_matrix(
+        (struct vec3){0.0f, 0.0f, 0.0f},
+        (struct vec3){1.0f, 1.0f, 1.0f},
+        renderer->rotation
     );
 
     VulkanoError error = 0;
@@ -377,15 +386,15 @@ renderer_create(struct vulkano* vk)
                 },
             .rasterization_state =
                 {
-                    .polygonMode = VK_POLYGON_MODE_LINE,
-                    .cullMode    = VK_CULL_MODE_NONE,
+                    .polygonMode = VK_POLYGON_MODE_FILL,
+                    .cullMode    = VK_CULL_MODE_BACK_BIT,
                     .frontFace   = VK_FRONT_FACE_CLOCKWISE,
                     .lineWidth   = 1,
                 },
             .depth_stencil_state =
                 {
-                    .depthTestEnable  = VK_FALSE,
-                    .depthWriteEnable = VK_FALSE,
+                    .depthTestEnable  = VK_TRUE,
+                    .depthWriteEnable = VK_TRUE,
                     .depthCompareOp   = VK_COMPARE_OP_LESS_OR_EQUAL,
                 },
             .color_blend_state =
@@ -544,6 +553,12 @@ renderer_draw(
             (float)renderer->vk->swapchain.extent.height,
         0.1f,
         100.0f
+    );
+    renderer->rotation.y += 0.004;
+    renderer->ubo.model = model_matrix(
+        (struct vec3){0.0f, 0.0f, 0.0f},
+        (struct vec3){1.0f, 1.0f, 1.0f},
+        renderer->rotation
     );
 
     struct transfer_buffer* transfer = renderer->transfer_buffers + frame_index;
