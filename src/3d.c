@@ -1,6 +1,9 @@
 #include "3d.h"
 
 #include <math.h>
+#include <string.h>
+
+#define PI 3.14159265358979323846
 
 void
 vec3norm(struct vec3* v)
@@ -67,10 +70,11 @@ vec3isub(struct vec3* existing, struct vec3 diff)
 struct mat4
 projection_matrix(float fovy, float aspect, float near, float far)
 {
-    const float radians           = fovy * 2.0f * M_PI / 360.0f;
+    const float radians           = fovy * 2.0f * PI / 360.0f;
     const float tangent_half_fovy = tan(radians / 2.0f);
 
-    struct mat4 matrix = {0.0f};
+    struct mat4 matrix;
+    memset(&matrix, 0, sizeof matrix);
 
     matrix.values[0][0] = 1.0f / (aspect * tangent_half_fovy);
     matrix.values[1][1] = 1.0f / tangent_half_fovy;
@@ -90,7 +94,8 @@ view_matrix(struct vec3 eye, struct vec3 direction, struct vec3 up)
     vec3norm(&side);
     struct vec3 top = vec3cross(forward, side);
 
-    struct mat4 matrix = {0.0f};
+    struct mat4 matrix;
+    memset(&matrix, 0, sizeof matrix);
 
     matrix.values[0][0] = side.x;
     matrix.values[1][0] = side.y;
@@ -123,7 +128,8 @@ model_matrix(struct vec3 translation, struct vec3 scale, struct vec3 rotation)
     const float cosz = cos(rotation.z);
     const float sinz = sin(rotation.z);
 
-    struct mat4 matrix = {0.0f};
+    struct mat4 matrix;
+    memset(&matrix, 0, sizeof matrix);
 
     matrix.values[0][0] = scale.x * (cosy * cosz + siny * sinx * sinz);
     matrix.values[0][1] = scale.x * (cosx * sinz);

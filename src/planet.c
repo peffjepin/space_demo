@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "../simplex/simplex.h"
+
 static void
 construct_subdivided_face(
     struct planet* planet,
@@ -31,9 +33,11 @@ construct_subdivided_face(
             // assumes the caller is responsible for centering the cube about
             // (0,0,0)
             vec3norm(&vertex);
-            vertex.x *= radius;
-            vertex.y *= radius;
-            vertex.z *= radius;
+            float noise =
+                simplex_sample3(planet->simplex, vertex.x, vertex.y, vertex.z);
+            vertex.x *= (radius + noise);
+            vertex.y *= (radius + noise);
+            vertex.z *= (radius + noise);
 
             size_t local_vertex_index = y * (subdivisions + 1) + x;
             planet->vertices[start_vertex + local_vertex_index] = vertex;
@@ -192,7 +196,9 @@ planet_create(uint32_t subdivisions, float radius)
 
     planet->vertex_count = (subdivisions + 1) * (subdivisions + 1) * 6;
     planet->index_count  = (subdivisions) * (subdivisions)*2 * 3 * 6;
+    planet->simplex      = simplex_context_create(0);
     planet->id           = 1;
+
     assert(planet->vertex_count < PLANET_MAX_VERTICES);
     assert(planet->index_count < PLANET_MAX_INDICES);
 
@@ -214,6 +220,8 @@ planet_create(uint32_t subdivisions, float radius)
 void
 planet_destroy(struct planet* planet)
 {
+    if (planet == NULL) return;
+    simplex_context_destroy(planet->simplex);
     free(planet->vertices);
     free(planet->indices);
     free(planet->normals);
