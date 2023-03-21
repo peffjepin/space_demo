@@ -22,10 +22,46 @@ vec3cross(struct vec3 a, struct vec3 b)
     };
 }
 
+struct vec3
+vec3add(struct vec3 a, struct vec3 b)
+{
+    return (struct vec3){
+        a.x + b.x,
+        a.y + b.y,
+        a.z + b.z,
+    };
+}
+
+struct vec3
+vec3sub(struct vec3 a, struct vec3 b)
+{
+    return (struct vec3){
+        a.x - b.x,
+        a.y - b.y,
+        a.z - b.z,
+    };
+}
+
 static float
 vec3dot(struct vec3 a, struct vec3 b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+void
+vec3iadd(struct vec3* existing, struct vec3 diff)
+{
+    existing->x += diff.x;
+    existing->y += diff.y;
+    existing->z += diff.z;
+}
+
+void
+vec3isub(struct vec3* existing, struct vec3 diff)
+{
+    existing->x -= diff.x;
+    existing->y -= diff.y;
+    existing->z -= diff.z;
 }
 
 struct mat4

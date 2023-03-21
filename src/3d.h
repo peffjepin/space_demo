@@ -6,9 +6,15 @@ struct vec3 {
     float y;
     float z;
 };
-
+ 
 struct vec3 vec3cross(struct vec3, struct vec3);
-void        vec3norm(struct vec3*);
+struct vec3 vec3add(struct vec3, struct vec3);
+struct vec3 vec3sub(struct vec3, struct vec3);
+
+// in place operations
+void vec3iadd(struct vec3*, struct vec3);
+void vec3isub(struct vec3*, struct vec3);
+void vec3norm(struct vec3*);
 
 struct mat4 {
     float values[4][4];

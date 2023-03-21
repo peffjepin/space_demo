@@ -28,6 +28,8 @@ construct_subdivided_face(
             vertex.x += dy.x * (float)y;
             vertex.y += dy.y * (float)y;
             vertex.z += dy.z * (float)y;
+            // assumes the caller is responsible for centering the cube about
+            // (0,0,0)
             vec3norm(&vertex);
             vertex.x *= radius;
             vertex.y *= radius;
@@ -39,80 +41,56 @@ construct_subdivided_face(
         }
     }
 
+    // clang-format off
     // accumulate normals and construct indices
     for (size_t y = 0; y < subdivisions; y++) {
         for (size_t x = 0; x < subdivisions; x++) {
-            // vertex indices
-            size_t vi1 = start_vertex + y * (subdivisions + 1) + x;
-            size_t vi2 = start_vertex + y * (subdivisions + 1) + x + 1;
-            size_t vi3 = start_vertex + (y + 1) * (subdivisions + 1) + x;
+            // first triangle
+            //
+            // indices
+            size_t vertex_index_1 = start_vertex + y * (subdivisions + 1) + x;
+            size_t vertex_index_2 = start_vertex + y * (subdivisions + 1) + x + 1;
+            size_t vertex_index_3 = start_vertex + (y + 1) * (subdivisions + 1) + x;
+            planet->indices[start_index++] = vertex_index_1;
+            planet->indices[start_index++] = vertex_index_2;
+            planet->indices[start_index++] = vertex_index_3;
 
-            // vertex values
-            struct vec3 vert1 = planet->vertices[vi1];
-            struct vec3 vert2 = planet->vertices[vi2];
-            struct vec3 vert3 = planet->vertices[vi3];
+            // normals
+            struct vec3 vertex_1 = planet->vertices[vertex_index_1];
+            struct vec3 vertex_2 = planet->vertices[vertex_index_2];
+            struct vec3 vertex_3 = planet->vertices[vertex_index_3];
 
-            // accumulate normals
-            struct vec3 edge1 = vert3;
-            edge1.x -= vert1.x;
-            edge1.y -= vert1.y;
-            edge1.z -= vert1.z;
-            struct vec3 edge2 = vert2;
-            edge2.x -= vert1.x;
-            edge2.y -= vert1.y;
-            edge2.z -= vert1.z;
+            struct vec3 edge1 = vec3sub(vertex_3, vertex_1);
+            struct vec3 edge2 = vec3sub(vertex_2, vertex_1);
             struct vec3 normal = vec3cross(edge1, edge2);
-            planet->normals[vi1].x += normal.x;
-            planet->normals[vi1].y += normal.y;
-            planet->normals[vi1].z += normal.z;
-            planet->normals[vi2].x += normal.x;
-            planet->normals[vi2].y += normal.y;
-            planet->normals[vi2].z += normal.z;
-            planet->normals[vi3].x += normal.x;
-            planet->normals[vi3].y += normal.y;
-            planet->normals[vi3].z += normal.z;
 
-            // construct indices
-            planet->indices[start_index++] = vi1;
-            planet->indices[start_index++] = vi2;
-            planet->indices[start_index++] = vi3;
+            vec3iadd(planet->normals+vertex_index_1, normal);
+            vec3iadd(planet->normals+vertex_index_2, normal);
+            vec3iadd(planet->normals+vertex_index_3, normal);
 
-            // vertex indices
-            vi1 = start_vertex + y * (subdivisions + 1) + x + 1;
-            vi2 = start_vertex + (y + 1) * (subdivisions + 1) + x + 1;
-            vi3 = start_vertex + (y + 1) * (subdivisions + 1) + x;
+            // second triangle
+            //
+            // indices
+            vertex_index_1 = start_vertex + y * (subdivisions + 1) + x + 1;
+            vertex_index_2 = start_vertex + (y + 1) * (subdivisions + 1) + x + 1;
+            vertex_index_3 = start_vertex + (y + 1) * (subdivisions + 1) + x;
+            planet->indices[start_index++] = vertex_index_1;
+            planet->indices[start_index++] = vertex_index_2;
+            planet->indices[start_index++] = vertex_index_3;
 
-            // vertex values
-            vert1 = planet->vertices[vi1];
-            vert2 = planet->vertices[vi2];
-            vert3 = planet->vertices[vi3];
-
-            // accumulate normals
-            edge1 = vert3;
-            edge1.x -= vert1.x;
-            edge1.y -= vert1.y;
-            edge1.z -= vert1.z;
-            edge2 = vert2;
-            edge2.x -= vert1.x;
-            edge2.y -= vert1.y;
-            edge2.z -= vert1.z;
+            // normals
+            vertex_1 = planet->vertices[vertex_index_1];
+            vertex_2 = planet->vertices[vertex_index_2];
+            vertex_3 = planet->vertices[vertex_index_3];
+            edge1 = vec3sub(vertex_3, vertex_1);
+            edge2 = vec3sub(vertex_2, vertex_1);
             normal = vec3cross(edge1, edge2);
-            planet->normals[vi1].x += normal.x;
-            planet->normals[vi1].y += normal.y;
-            planet->normals[vi1].z += normal.z;
-            planet->normals[vi2].x += normal.x;
-            planet->normals[vi2].y += normal.y;
-            planet->normals[vi2].z += normal.z;
-            planet->normals[vi3].x += normal.x;
-            planet->normals[vi3].y += normal.y;
-            planet->normals[vi3].z += normal.z;
-
-            // construct indices
-            planet->indices[start_index++] = vi1;
-            planet->indices[start_index++] = vi2;
-            planet->indices[start_index++] = vi3;
+            vec3iadd(planet->normals+vertex_index_1, normal);
+            vec3iadd(planet->normals+vertex_index_2, normal);
+            vec3iadd(planet->normals+vertex_index_3, normal);
         }
     }
+    // clang-format on
 
     // normalize accumulated normals
     for (size_t i = 0; i < (subdivisions + 1) * (subdivisions + 1); i++) {
