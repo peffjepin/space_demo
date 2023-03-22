@@ -14,12 +14,14 @@
 #define NOISE_MIN_GAIN 0.1f
 #define NOISE_MIN_FREQUENCY 0.01f
 #define NOISE_MIN_LACUNARITY 1.5f
+#define NOISE_MIN_SCALE (PLANET_RADIUS / 20.0f)
 #define NOISE_MIN_LAYERS 1
 
 #define NOISE_MAX_GAIN 0.9f
 #define NOISE_MAX_FREQUENCY 1.0f
 #define NOISE_MAX_LACUNARITY 2.5f
 #define NOISE_MAX_LAYERS 20
+#define NOISE_MAX_SCALE (PLANET_RADIUS / 4.0f)
 
 #define NOISE_INITIAL_GAIN ((NOISE_MIN_GAIN + NOISE_MAX_GAIN) / 2.0f)
 #define NOISE_INITIAL_FREQUENCY                                                \
@@ -27,6 +29,7 @@
 #define NOISE_INITIAL_LACUNARITY                                               \
     ((NOISE_MIN_LACUNARITY + NOISE_MAX_LACUNARITY) / 2.0f)
 #define NOISE_INITIAL_LAYERS ((NOISE_MIN_LAYERS + NOISE_MAX_LAYERS) / 2)
+#define NOISE_INITIAL_SCALE ((NOISE_MAX_SCALE + NOISE_MIN_SCALE) / 2.0f)
 
 // quads * 2 triangles per quad * 3 indices per triangle * 6 faces per cube
 #define PLANET_MAX_INDICES                                                     \
@@ -57,5 +60,6 @@ void               planet_set_noise_layers(Planet, uint32_t);
 void               planet_set_noise_gain(Planet, float);
 void               planet_set_noise_frequency(Planet, float);
 void               planet_set_noise_lacunarity(Planet, float);
+void               planet_set_noise_scale(Planet, float);
 
 #endif  // PLANET_H

@@ -16,6 +16,7 @@ struct generation_params {
     float    noise_gain;
     float    noise_frequency;
     float    noise_lacunarity;
+    float    noise_scale;
 };
 
 static bool
@@ -61,8 +62,7 @@ struct face_generation_context {
 static int
 construct_subdivided_face(struct face_generation_context* ctx)
 {
-    static const struct vec3 vec3zero     = {0.0f};
-    static const float       HEIGHT_SCALE = PLANET_RADIUS / 5.0f;
+    static const struct vec3 vec3zero = {0.0f};
 
     // construct vertices
     for (size_t y = 0; y < ctx->params->subdivisions + 1; y++) {
@@ -85,7 +85,9 @@ construct_subdivided_face(struct face_generation_context* ctx)
                 ctx->params->noise_frequency,
                 ctx->params->noise_lacunarity
             );
-            vec3imuls(&vertex, PLANET_RADIUS + noise * HEIGHT_SCALE);
+            vec3imuls(
+                &vertex, PLANET_RADIUS + noise * ctx->params->noise_scale
+            );
 
             size_t vertex_index =
                 ctx->start_vertex + y * (ctx->params->subdivisions + 1) + x;
@@ -342,6 +344,7 @@ planet_create(uint32_t subdivisions)
     planet->configured_params.noise_frequency  = NOISE_INITIAL_FREQUENCY;
     planet->configured_params.noise_lacunarity = NOISE_INITIAL_LACUNARITY;
     planet->configured_params.noise_layers     = NOISE_INITIAL_LAYERS;
+    planet->configured_params.noise_scale      = NOISE_INITIAL_SCALE;
 
     planet->simplex = simplex_context_create(0);
     planet->mutex   = SDL_CreateMutex();
@@ -427,6 +430,14 @@ planet_set_noise_lacunarity(struct planet* planet, float lacunarity)
 {
     SDL_LockMutex(planet->mutex);
     planet->configured_params.noise_lacunarity = lacunarity;
+    SDL_UnlockMutex(planet->mutex);
+}
+
+void
+planet_set_noise_scale(struct planet* planet, float scale)
+{
+    SDL_LockMutex(planet->mutex);
+    planet->configured_params.noise_scale = scale;
     SDL_UnlockMutex(planet->mutex);
 }
 

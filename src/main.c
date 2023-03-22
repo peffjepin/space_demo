@@ -35,7 +35,7 @@ main(void)
     vulkano_submit_single_use_command_buffer(&vksdl.vk, init_cmd, &error);
     if (error) exit(EXIT_FAILURE);
 
-    static const uint32_t INITIAL_SUBDIVISIONS = PLANET_MAX_SUBDIVISIONS / 3;
+    static const uint32_t INITIAL_SUBDIVISIONS = PLANET_MAX_SUBDIVISIONS / 2;
     struct planet*        planet = planet_create(INITIAL_SUBDIVISIONS);
 
     static const float CAMERA_Z_MIN_MULT = 1.25f;
@@ -107,15 +107,6 @@ main(void)
         planet_release_mesh(planet);
         imgui_text("vertex_count: %d", mesh.vertex_count);
 
-        static const float ROTATION_SPEED_INITIAL  = 0.1f;
-        static float       rotation_speed          = ROTATION_SPEED_INITIAL;
-        static float       previous_rotation_speed = ROTATION_SPEED_INITIAL;
-        imgui_sliderf("rotation", &rotation_speed, -1.0f, 1.0f);
-        if (rotation_speed != previous_rotation_speed) {
-            previous_rotation_speed = rotation_speed;
-            renderer_set_rotation_speed(renderer, rotation_speed);
-        }
-
         static int previous_subdivisions = INITIAL_SUBDIVISIONS;
         static int subdivisions          = INITIAL_SUBDIVISIONS;
         imgui_slideri(
@@ -124,6 +115,15 @@ main(void)
         if (subdivisions != previous_subdivisions) {
             previous_subdivisions = subdivisions;
             planet_set_subdivisions(planet, subdivisions);
+        }
+
+        static const float ROTATION_SPEED_INITIAL  = 0.1f;
+        static float       rotation_speed          = ROTATION_SPEED_INITIAL;
+        static float       previous_rotation_speed = ROTATION_SPEED_INITIAL;
+        imgui_sliderf("rotation", &rotation_speed, -1.0f, 1.0f);
+        if (rotation_speed != previous_rotation_speed) {
+            previous_rotation_speed = rotation_speed;
+            renderer_set_rotation_speed(renderer, rotation_speed);
         }
 
         static int previous_layers = NOISE_INITIAL_LAYERS;
@@ -165,8 +165,15 @@ main(void)
             planet_set_noise_lacunarity(planet, lacunarity);
         }
 
-        imgui_end();
+        static float previous_scale = NOISE_INITIAL_SCALE;
+        static float scale          = NOISE_INITIAL_SCALE;
+        imgui_sliderf("scale", &scale, NOISE_MIN_SCALE, NOISE_MAX_SCALE);
+        if (scale != previous_scale) {
+            previous_scale = scale;
+            planet_set_noise_scale(planet, scale);
+        }
 
+        imgui_end();  // control panel
         imgui_finish_frame(cmd);
 
         vulkano_frame_submit(&vksdl.vk, &vkframe, submit_info, &error);
