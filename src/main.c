@@ -10,6 +10,7 @@
 #include "imgui_wrapper.h"
 
 #define INITIAL_SUBDIVISIONS (PLANET_MAX_SUBDIVISIONS / 2)
+#define INITIAL_SEED 0
 #define ROTATION_SPEED_INITIAL 0.1f
 
 int
@@ -19,10 +20,10 @@ main(void)
     struct vulkano_sdl vksdl = vulkano_sdl_create(
         (struct vulkano_config){0},
         (struct sdl_config){
-            .left   = 100,
-            .top    = 100,
-            .width  = 1600,
-            .height = 900,
+            .left         = 100,
+            .top          = 100,
+            .width        = 1600,
+            .height       = 900,
             .window_flags = SDL_WINDOW_RESIZABLE,
         },
         &error
@@ -39,7 +40,7 @@ main(void)
     vulkano_submit_single_use_command_buffer(&vksdl.vk, init_cmd, &error);
     if (error) exit(EXIT_FAILURE);
 
-    struct planet* planet = planet_create(INITIAL_SUBDIVISIONS);
+    struct planet* planet = planet_create(INITIAL_SUBDIVISIONS, INITIAL_SEED);
 
     static const float CAMERA_Z_MIN_MULT = 1.25f;
     static const float CAMERA_Z_MAX_MULT = 3.0f;
@@ -110,6 +111,14 @@ main(void)
         planet_release_mesh(planet);
         imgui_text("vertex_count: %d", mesh.vertex_count);
 
+        static int previous_seed = INITIAL_SEED;
+        static int seed          = INITIAL_SEED;
+        imgui_slideri("seed", &seed, 0, 1000);
+        if (seed != previous_seed) {
+            previous_seed = seed;
+            planet_set_seed(planet, seed);
+        }
+
         static int previous_subdivisions = INITIAL_SUBDIVISIONS;
         static int subdivisions          = INITIAL_SUBDIVISIONS;
         imgui_slideri(
@@ -120,8 +129,8 @@ main(void)
             planet_set_subdivisions(planet, subdivisions);
         }
 
-        static float       rotation_speed          = ROTATION_SPEED_INITIAL;
-        static float       previous_rotation_speed = ROTATION_SPEED_INITIAL;
+        static float rotation_speed          = ROTATION_SPEED_INITIAL;
+        static float previous_rotation_speed = ROTATION_SPEED_INITIAL;
         imgui_sliderf("rotation", &rotation_speed, -1.0f, 1.0f);
         if (rotation_speed != previous_rotation_speed) {
             previous_rotation_speed = rotation_speed;

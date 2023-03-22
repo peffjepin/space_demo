@@ -51,7 +51,7 @@ struct planet_mesh {
     uint32_t*    indices;
 };
 
-Planet             planet_create(uint32_t subdivisions);
+Planet             planet_create(uint32_t subdivisions, int seed);
 void               planet_destroy(Planet);
 struct planet_mesh planet_acquire_mesh(Planet);
 void               planet_release_mesh(Planet);
@@ -61,5 +61,6 @@ void               planet_set_noise_gain(Planet, float);
 void               planet_set_noise_frequency(Planet, float);
 void               planet_set_noise_lacunarity(Planet, float);
 void               planet_set_noise_scale(Planet, float);
+void               planet_set_seed(Planet, int);
 
 #endif  // PLANET_H

@@ -1,6 +1,6 @@
 #include "planet.h"
 
-// Not exactly sure why this isn't working for me 
+// Not exactly sure why this isn't working for me
 // with cl.exe. As far as I can tell it's supposed to be
 // supported and the header exists but including it spews
 // a ton of syntax errors for me. A quick check online yielded
@@ -23,25 +23,18 @@
 struct generation_params {
     uint32_t subdivisions;
     uint32_t noise_layers;
+    int64_t  seed;
     float    noise_gain;
     float    noise_frequency;
     float    noise_lacunarity;
     float    noise_scale;
 };
 
-static bool
-generation_params_equal(
-    struct generation_params* p1, struct generation_params* p2
-)
-{
-    return memcmp(p1, p2, sizeof *p1) == 0;
-}
-
 struct planet {
     SDL_mutex*  mutex;
     SDL_Thread* thread;
 #ifndef _WIN32
-    atomic_int  shutdown_signal;
+    atomic_int shutdown_signal;
 #else
     int shutdown_signal;
 #endif
@@ -63,7 +56,9 @@ struct planet {
     struct vec3*             normals;
 };
 
-static bool check_shutdown_signal(struct planet* planet) {
+static bool
+check_shutdown_signal(struct planet* planet)
+{
     bool result = false;
 #ifdef _WIN32
     SDL_LockMutex(planet->mutex);
@@ -75,7 +70,9 @@ static bool check_shutdown_signal(struct planet* planet) {
     return result;
 }
 
-static void set_shutdown_signal(struct planet* planet) {
+static void
+set_shutdown_signal(struct planet* planet)
+{
 #ifdef _WIN32
     SDL_LockMutex(planet->mutex);
     planet->shutdown_signal = 1;
@@ -363,18 +360,24 @@ planet_generation_main(struct planet* planet)
     while (!check_shutdown_signal(planet)) {
         SDL_LockMutex(planet->mutex);
         struct generation_params configured = planet->configured_params;
-        bool                     requires_regeneration =
-            !generation_params_equal(&configured, &planet->generated_params);
         SDL_UnlockMutex(planet->mutex);
+        bool requires_regeneration =
+            (memcmp(
+                 &configured, &planet->generated_params, sizeof configured
+             ) != 0);
 
         if (requires_regeneration) {
             uint32_t vertex_count = (configured.subdivisions + 1) *
-                                  (configured.subdivisions + 1) * 6;
+                                    (configured.subdivisions + 1) * 6;
             uint32_t index_count = (configured.subdivisions) *
-                                 (configured.subdivisions) * 2 * 3 * 6;
+                                   (configured.subdivisions) * 2 * 3 * 6;
             assert(vertex_count <= PLANET_MAX_VERTICES);
             assert(index_count <= PLANET_MAX_INDICES);
 
+            if (configured.seed != planet->generated_params.seed) {
+                simplex_context_destroy(planet->simplex);
+                planet->simplex = simplex_context_create(configured.seed);
+            }
             construct_subdivided_cube(
                 planet,
                 &configured,
@@ -407,7 +410,7 @@ planet_generation_main(struct planet* planet)
 }
 
 struct planet*
-planet_create(uint32_t subdivisions)
+planet_create(uint32_t subdivisions, int seed)
 {
     if (subdivisions == 0 || subdivisions > PLANET_MAX_SUBDIVISIONS) {
         fprintf(stderr, "ERROR: max planet subdivisions exceeded\n");
@@ -440,7 +443,7 @@ planet_create(uint32_t subdivisions)
     planet->configured_params.noise_layers     = NOISE_INITIAL_LAYERS;
     planet->configured_params.noise_scale      = NOISE_INITIAL_SCALE;
 
-    planet->simplex = simplex_context_create(0);
+    planet->simplex = simplex_context_create((int64_t)seed);
     planet->mutex   = SDL_CreateMutex();
     if (!planet->mutex) goto memory_error;
 
@@ -532,6 +535,14 @@ planet_set_noise_scale(struct planet* planet, float scale)
 {
     SDL_LockMutex(planet->mutex);
     planet->configured_params.noise_scale = scale;
+    SDL_UnlockMutex(planet->mutex);
+}
+
+void
+planet_set_seed(struct planet* planet, int seed)
+{
+    SDL_LockMutex(planet->mutex);
+    planet->configured_params.seed = (int64_t)seed;
     SDL_UnlockMutex(planet->mutex);
 }
 
