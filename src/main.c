@@ -35,11 +35,12 @@ main(void)
     vulkano_submit_single_use_command_buffer(&vksdl.vk, init_cmd, &error);
     if (error) exit(EXIT_FAILURE);
 
-    renderer_set_camera_position(renderer, 0.0f, 0.0f, -PLANET_RADIUS * 2);
-    renderer_set_camera_target(renderer, 0.0f, 0.0f, 0.0f);
-
     static const uint32_t INITIAL_SUBDIVISIONS = PLANET_MAX_SUBDIVISIONS / 3;
     struct planet*        planet = planet_create(INITIAL_SUBDIVISIONS);
+
+    static const float CAMERA_Z_MIN_MULT = 1.25f;
+    static const float CAMERA_Z_MAX_MULT = 3.0f;
+    static float camera_z_mult = (CAMERA_Z_MIN_MULT + CAMERA_Z_MAX_MULT) / 2.0f;
 
     while (1) {
         SDL_Event event;
@@ -56,9 +57,19 @@ main(void)
                         goto teardown;
                     break;
                 }
+                case SDL_MOUSEWHEEL:
+                    camera_z_mult -= event.wheel.y * 0.05f;
+                    if (camera_z_mult < CAMERA_Z_MIN_MULT)
+                        camera_z_mult = CAMERA_Z_MIN_MULT;
+                    if (camera_z_mult > CAMERA_Z_MAX_MULT)
+                        camera_z_mult = CAMERA_Z_MAX_MULT;
                 default: break;
             }
         }
+        renderer_set_camera_position(
+            renderer, 0.0f, 0.0f, -PLANET_RADIUS * camera_z_mult
+        );
+        renderer_set_camera_target(renderer, 0.0f, 0.0f, 0.0f);
 
         struct vulkano_frame vkframe = {
             .clear = {0.0, 0.0, 0.0, 1.0},
@@ -67,20 +78,25 @@ main(void)
         if (error == VULKANO_ERROR_CODE_MINIMIZED) continue;
         if (error) goto teardown;
 
-        VkCommandBuffer cmd = vkframe.state.render_command;
-        VkSubmitInfo    submit_info =
-            renderer_draw(renderer, cmd, vkframe.index, planet);
+        static const uint32_t CONTROL_PANEL_WIDTH = 300;
+
+        VkCommandBuffer cmd         = vkframe.state.render_command;
+        VkSubmitInfo    submit_info = renderer_draw(
+            renderer,
+            cmd,
+            vkframe.index,
+            planet,
+            vksdl.vk.swapchain.extent.width - CONTROL_PANEL_WIDTH,
+            vksdl.vk.swapchain.extent.height
+        );
 
         imgui_start_frame();
 
         imgui_set_next_window_position_pivot(
             (float)vksdl.vk.swapchain.extent.width, 0.0f, 1.0f, 0.0f
         );
-        imgui_set_next_window_size_constraints(
-            0.0f,
-            (float)vksdl.vk.swapchain.extent.height,
-            10000.f,
-            (float)vksdl.vk.swapchain.extent.height
+        imgui_set_next_window_size(
+            (float)CONTROL_PANEL_WIDTH, (float)vksdl.vk.swapchain.extent.height
         );
         imgui_begin(
             "control panel",
@@ -91,10 +107,19 @@ main(void)
         planet_release_mesh(planet);
         imgui_text("vertex_count: %d", mesh.vertex_count);
 
+        static const float ROTATION_SPEED_INITIAL  = 0.1f;
+        static float       rotation_speed          = ROTATION_SPEED_INITIAL;
+        static float       previous_rotation_speed = ROTATION_SPEED_INITIAL;
+        imgui_sliderf("rotation", &rotation_speed, -1.0f, 1.0f);
+        if (rotation_speed != previous_rotation_speed) {
+            previous_rotation_speed = rotation_speed;
+            renderer_set_rotation_speed(renderer, rotation_speed);
+        }
+
         static int previous_subdivisions = INITIAL_SUBDIVISIONS;
         static int subdivisions          = INITIAL_SUBDIVISIONS;
         imgui_slideri(
-            "xubdivisions", &subdivisions, 1, PLANET_MAX_SUBDIVISIONS
+            "subdivisions", &subdivisions, 1, PLANET_MAX_SUBDIVISIONS
         );
         if (subdivisions != previous_subdivisions) {
             previous_subdivisions = subdivisions;

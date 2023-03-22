@@ -31,6 +31,7 @@ struct demo_renderer {
 
     struct ubo  ubo;
     struct vec3 rotation;
+    float       rotation_speed;
 
     size_t                ubo_size_per_frame;
     struct vulkano_buffer uniform_buffer;
@@ -140,8 +141,9 @@ renderer_create(struct vulkano* vk)
         0.1f,
         1000.0f
     );
-    renderer->rotation  = (struct vec3){0.0f, 0.0f, 0.0f};
-    renderer->ubo.model = model_matrix(
+    renderer->rotation       = (struct vec3){0.0f, 0.0f, 0.0f};
+    renderer->rotation_speed = 0.1f;
+    renderer->ubo.model      = model_matrix(
         (struct vec3){0.0f, 0.0f, 0.0f},
         (struct vec3){1.0f, 1.0f, 1.0f},
         renderer->rotation
@@ -404,7 +406,7 @@ renderer_create(struct vulkano* vk)
                 {
                     .depthTestEnable  = VK_TRUE,
                     .depthWriteEnable = VK_TRUE,
-                    .depthCompareOp   = VK_COMPARE_OP_LESS_OR_EQUAL,
+                    .depthCompareOp   = VK_COMPARE_OP_LESS,
                 },
             .color_blend_state =
                 {
@@ -551,19 +553,17 @@ renderer_draw(
     struct demo_renderer* renderer,
     VkCommandBuffer       cmd,
     size_t                frame_index,
-    Planet                planet
+    Planet                planet,
+    uint32_t              viewport_width,
+    uint32_t              viewport_height
 )
 {
     VulkanoError error = 0;
 
     renderer->ubo.proj = projection_matrix(
-        60.0f,
-        (float)renderer->vk->swapchain.extent.width /
-            (float)renderer->vk->swapchain.extent.height,
-        0.1f,
-        1000.0f
+        60.0f, (float)viewport_width / (float)viewport_height, 0.1f, 1000.0f
     );
-    renderer->rotation.y += 0.001;
+    renderer->rotation.y += renderer->rotation_speed / 100.f;
     renderer->ubo.model = model_matrix(
         (struct vec3){0.0f, 0.0f, 0.0f},
         (struct vec3){1.0f, 1.0f, 1.0f},
@@ -656,8 +656,17 @@ renderer_draw(
             renderer->normals_buffer_size_per_frame * frame_index,
         }
     );
-    VkViewport viewport = VULKANO_VIEWPORT(renderer->vk);
-    VkRect2D   scissor  = VULKANO_SCISSOR(renderer->vk);
+    VkViewport viewport = {
+        .x        = 0.0f,
+        .y        = 0.0f,
+        .width    = (float)viewport_width,
+        .height   = (float)viewport_height,
+        .maxDepth = 1.0f,
+    };
+    VkRect2D scissor = {
+        .offset = {0, 0},
+        .extent = {viewport_width, viewport_height},
+    };
     vkCmdSetViewport(cmd, 0, 1, &viewport);
     vkCmdSetScissor(cmd, 0, 1, &scissor);
     vkCmdDrawIndexed(
@@ -671,6 +680,12 @@ renderer_draw(
         .pWaitDstStageMask  = &STAGE_MASK,
         .pWaitSemaphores    = &transfer->semaphore,
     };
+}
+
+void
+renderer_set_rotation_speed(struct demo_renderer* renderer, float speed)
+{
+    renderer->rotation_speed = speed;
 }
 
 struct vulkano_data
