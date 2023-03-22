@@ -3,12 +3,12 @@
 #include <math.h>
 #include <string.h>
 
-#define PI 3.14159265358979323846
+#define PI 3.14159265358979323846f
 
 void
 vec3norm(struct vec3* v)
 {
-    float magnitude = sqrt(v->x * v->x + v->y * v->y + v->z * v->z);
+    float magnitude = (float)sqrt(v->x * v->x + v->y * v->y + v->z * v->z);
     if (magnitude == 0) return;
     v->x /= magnitude;
     v->y /= magnitude;
@@ -99,7 +99,7 @@ struct mat4
 projection_matrix(float fovy, float aspect, float near, float far)
 {
     const float radians           = fovy * 2.0f * PI / 360.0f;
-    const float tangent_half_fovy = tan(radians / 2.0f);
+    const float tangent_half_fovy = (float)tan(radians / 2.0f);
 
     struct mat4 matrix;
     memset(&matrix, 0, sizeof matrix);
@@ -149,12 +149,12 @@ view_matrix(struct vec3 eye, struct vec3 direction, struct vec3 up)
 struct mat4
 model_matrix(struct vec3 translation, struct vec3 scale, struct vec3 rotation)
 {
-    const float cosx = cos(rotation.x);
-    const float sinx = sin(rotation.x);
-    const float cosy = cos(rotation.y);
-    const float siny = sin(rotation.y);
-    const float cosz = cos(rotation.z);
-    const float sinz = sin(rotation.z);
+    const float cosx = (float)cos(rotation.x);
+    const float sinx = (float)sin(rotation.x);
+    const float cosy = (float)cos(rotation.y);
+    const float siny = (float)sin(rotation.y);
+    const float cosz = (float)cos(rotation.z);
+    const float sinz = (float)sin(rotation.z);
 
     struct mat4 matrix;
     memset(&matrix, 0, sizeof matrix);

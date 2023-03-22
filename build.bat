@@ -7,16 +7,19 @@ if "%CL_EXE%"=="" set CL_EXE=cl.exe
 if "%LINK_EXE%"=="" set LINK_EXE=link.exe
 if "%GLSLC_EXE%"=="" set GLSLC=glslc.exe
 
-set CFLAGS=/I"%VULKAN_SDK%\Include" /I"%SDL_INCLUDE%" /W4
+set CFLAGS=/D_CRT_SECURE_NO_WARNINGS /I"%VULKAN_SDK%\Include" /I"%SDL_INCLUDE%" /W4
 set LFLAGS=/LIBPATH:"%VULKAN_SDK%\Lib" /LIBPATH:"%SDL_LIB%" vulkan-1.lib SDL2.lib
+set SOURCES=src\3d.c src\noise.c src\planet.c src\renderer.c src\transfer_buffer.c simplex\simplex.c
 
 @echo on
 
 if not exist bin mkdir bin
 if not exist build mkdir build
 
-
-%CL_EXE% %CFLAGS% /TC /c src\main.c /Fo:build\
+%GLSLC% shaders\planet.vert -o build\planet.vert.spv
+%GLSLC% shaders\planet.frag -o build\planet.frag.spv
+%CL_EXE% %CFLAGS% /TC /std:c11 /c src\main.c /Fo:build\
+%CL_EXE% %CFLAGS% /TC /std:c11 /c %SOURCES% /Fo:build\
 %CL_EXE% %CFLAGS% /TP /c /I"%SDL_INCLUDE%" src\imgui_wrapper.cpp /Fo:build\
 %CL_EXE% %CFLAGS% /TP /c imgui\*.cpp /Fo:build\
 %LINK_EXE% %LFLAGS% /out:"bin\main.exe" build\*.obj

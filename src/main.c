@@ -1,3 +1,4 @@
+#define SDL_MAIN_HANDLED
 #define VULKANO_IMPLEMENTATION
 #define VULKANO_ENABLE_DEFAULT_VALIDATION_LAYERS
 #define VULKANO_ENABLE_DEFAULT_GRAPHICS_EXTENSIONS
@@ -8,6 +9,9 @@
 #include "planet.h"
 #include "imgui_wrapper.h"
 
+#define INITIAL_SUBDIVISIONS (PLANET_MAX_SUBDIVISIONS / 2)
+#define ROTATION_SPEED_INITIAL 0.1f
+
 int
 main(void)
 {
@@ -15,11 +19,11 @@ main(void)
     struct vulkano_sdl vksdl = vulkano_sdl_create(
         (struct vulkano_config){0},
         (struct sdl_config){
-            // .window_flags = SDL_WINDOW_RESIZABLE,
             .left   = 100,
             .top    = 100,
-            .width  = 1920,
-            .height = 1080,
+            .width  = 1600,
+            .height = 900,
+            .window_flags = SDL_WINDOW_RESIZABLE,
         },
         &error
     );
@@ -35,12 +39,11 @@ main(void)
     vulkano_submit_single_use_command_buffer(&vksdl.vk, init_cmd, &error);
     if (error) exit(EXIT_FAILURE);
 
-    static const uint32_t INITIAL_SUBDIVISIONS = PLANET_MAX_SUBDIVISIONS / 2;
-    struct planet*        planet = planet_create(INITIAL_SUBDIVISIONS);
+    struct planet* planet = planet_create(INITIAL_SUBDIVISIONS);
 
     static const float CAMERA_Z_MIN_MULT = 1.25f;
     static const float CAMERA_Z_MAX_MULT = 3.0f;
-    static float camera_z_mult = (CAMERA_Z_MIN_MULT + CAMERA_Z_MAX_MULT) / 2.0f;
+    float camera_z_mult = (CAMERA_Z_MIN_MULT + CAMERA_Z_MAX_MULT) / 2.0f;
 
     while (1) {
         SDL_Event event;
@@ -117,7 +120,6 @@ main(void)
             planet_set_subdivisions(planet, subdivisions);
         }
 
-        static const float ROTATION_SPEED_INITIAL  = 0.1f;
         static float       rotation_speed          = ROTATION_SPEED_INITIAL;
         static float       previous_rotation_speed = ROTATION_SPEED_INITIAL;
         imgui_sliderf("rotation", &rotation_speed, -1.0f, 1.0f);

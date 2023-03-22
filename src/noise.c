@@ -13,7 +13,7 @@ fbm(SimplexContext simplex,
     for (unsigned int layer = 0; layer < layers; layer++) {
         vec3imuls(&location, freq);
         float noise =
-            simplex_sample3(simplex, location.x, location.y, location.z);
+            (float)simplex_sample3(simplex, location.x, location.y, location.z);
         total += noise * factor;
         factor *= gain;
         freq *= lacunarity;

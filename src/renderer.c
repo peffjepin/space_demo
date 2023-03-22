@@ -670,7 +670,7 @@ renderer_draw(
     vkCmdSetViewport(cmd, 0, 1, &viewport);
     vkCmdSetScissor(cmd, 0, 1, &scissor);
     vkCmdDrawIndexed(
-        cmd, renderer->buffered_planets[frame_index].index_count, 1, 0, 0, 0
+        cmd, (uint32_t)renderer->buffered_planets[frame_index].index_count, 1, 0, 0, 0
     );
 
     static const VkPipelineStageFlags STAGE_MASK =

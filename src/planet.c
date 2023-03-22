@@ -1,10 +1,20 @@
 #include "planet.h"
 
+// Not exactly sure why this isn't working for me 
+// with cl.exe. As far as I can tell it's supposed to be
+// supported and the header exists but including it spews
+// a ton of syntax errors for me. A quick check online yielded
+// no answers so I guess I'll just hack around it as much
+// as that sucks.
+#ifndef _WIN32
+#include <stdatomic.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <stdatomic.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include <SDL2/SDL.h>
 
@@ -30,7 +40,11 @@ generation_params_equal(
 struct planet {
     SDL_mutex*  mutex;
     SDL_Thread* thread;
+#ifndef _WIN32
     atomic_int  shutdown_signal;
+#else
+    int shutdown_signal;
+#endif
 
     // used only by the generator thread, no sync required
     SimplexContext           simplex;
@@ -42,18 +56,40 @@ struct planet {
     // available to the main thread, sync required
     uint64_t                 id;
     struct generation_params configured_params;
-    size_t                   index_count;
-    size_t                   vertex_count;
+    uint32_t                 index_count;
+    uint32_t                 vertex_count;
     uint32_t*                indices;
     struct vec3*             vertices;
     struct vec3*             normals;
 };
 
+static bool check_shutdown_signal(struct planet* planet) {
+    bool result = false;
+#ifdef _WIN32
+    SDL_LockMutex(planet->mutex);
+    result = planet->shutdown_signal != 0;
+    SDL_UnlockMutex(planet->mutex);
+#else
+    result = atomic_load(&planet->shutdown_signal) != 0;
+#endif
+    return result;
+}
+
+static void set_shutdown_signal(struct planet* planet) {
+#ifdef _WIN32
+    SDL_LockMutex(planet->mutex);
+    planet->shutdown_signal = 1;
+    SDL_UnlockMutex(planet->mutex);
+#else
+    atomic_store(&planet->shutdown_signal, 1);
+#endif
+}
+
 struct face_generation_context {
     struct planet*            planet;
     struct generation_params* params;
-    size_t                    start_vertex;
-    size_t                    start_index;
+    uint32_t                  start_vertex;
+    uint32_t                  start_index;
     struct vec3               corner;
     struct vec3               dx;
     struct vec3               dy;
@@ -66,12 +102,12 @@ regenerate_face(struct face_generation_context* ctx)
 {
     static const struct vec3 vec3zero = {0.0f, 0.0f, 0.0f};
 
-    const size_t vertices_per_face =
+    const uint32_t vertices_per_face =
         (ctx->params->subdivisions + 1) * (ctx->params->subdivisions + 1);
-    const size_t indices_per_face =
+    const uint32_t indices_per_face =
         ctx->params->subdivisions * ctx->params->subdivisions * 2 * 3;
 
-    for (size_t i = ctx->start_vertex;
+    for (uint32_t i = ctx->start_vertex;
          i < ctx->start_vertex + vertices_per_face;
          i++) {
         ctx->planet->generator_normals[i] = vec3zero;
@@ -91,11 +127,11 @@ regenerate_face(struct face_generation_context* ctx)
         ctx->planet->generator_vertices[i] = vertex;
     }
 
-    for (size_t i = ctx->start_index; i < ctx->start_index + indices_per_face;
+    for (uint32_t i = ctx->start_index; i < ctx->start_index + indices_per_face;
          i += 3) {
-        const size_t index_1 = ctx->planet->indices[i + 0];
-        const size_t index_2 = ctx->planet->indices[i + 1];
-        const size_t index_3 = ctx->planet->indices[i + 2];
+        const uint32_t index_1 = ctx->planet->indices[i + 0];
+        const uint32_t index_2 = ctx->planet->indices[i + 1];
+        const uint32_t index_3 = ctx->planet->indices[i + 2];
 
         // set indices because the generator buffer might not have these indices
         // in it yet
@@ -116,7 +152,7 @@ regenerate_face(struct face_generation_context* ctx)
         vec3iadd(ctx->planet->generator_normals + index_3, normal);
     }
 
-    for (size_t i = ctx->start_vertex;
+    for (uint32_t i = ctx->start_vertex;
          i < ctx->start_vertex + vertices_per_face;
          i++) {
         vec3norm(ctx->planet->generator_normals + i);
@@ -131,8 +167,8 @@ construct_subdivided_face(struct face_generation_context* ctx)
     static const struct vec3 vec3zero = {0.0f, 0.0f, 0.0f};
 
     // construct vertices
-    for (size_t y = 0; y < ctx->params->subdivisions + 1; y++) {
-        for (size_t x = 0; x < ctx->params->subdivisions + 1; x++) {
+    for (uint32_t y = 0; y < ctx->params->subdivisions + 1; y++) {
+        for (uint32_t x = 0; x < ctx->params->subdivisions + 1; x++) {
             struct vec3 vertex = ctx->corner;
             vertex.x += ctx->dx.x * (float)x;
             vertex.y += ctx->dx.y * (float)x;
@@ -155,7 +191,7 @@ construct_subdivided_face(struct face_generation_context* ctx)
                 &vertex, PLANET_RADIUS + noise * ctx->params->noise_scale
             );
 
-            size_t vertex_index =
+            uint32_t vertex_index =
                 ctx->start_vertex + y * (ctx->params->subdivisions + 1) + x;
             ctx->planet->generator_vertices[vertex_index] = vertex;
             ctx->planet->generator_normals[vertex_index]  = vec3zero;
@@ -164,14 +200,14 @@ construct_subdivided_face(struct face_generation_context* ctx)
 
     // clang-format off
     // accumulate normals and construct indices
-    for (size_t y = 0; y < ctx->params->subdivisions; y++) {
-        for (size_t x = 0; x < ctx->params->subdivisions; x++) {
+    for (uint32_t y = 0; y < ctx->params->subdivisions; y++) {
+        for (uint32_t x = 0; x < ctx->params->subdivisions; x++) {
             // first triangle
             //
             // indices
-            size_t vertex_index_1 = ctx->start_vertex + y * (ctx->params->subdivisions + 1) + x;
-            size_t vertex_index_2 = ctx->start_vertex + y * (ctx->params->subdivisions + 1) + x + 1;
-            size_t vertex_index_3 = ctx->start_vertex + (y + 1) * (ctx->params->subdivisions + 1) + x;
+            uint32_t vertex_index_1 = ctx->start_vertex + y * (ctx->params->subdivisions + 1) + x;
+            uint32_t vertex_index_2 = ctx->start_vertex + y * (ctx->params->subdivisions + 1) + x + 1;
+            uint32_t vertex_index_3 = ctx->start_vertex + (y + 1) * (ctx->params->subdivisions + 1) + x;
             ctx->planet->generator_indices[ctx->start_index++] = vertex_index_1;
             ctx->planet->generator_indices[ctx->start_index++] = vertex_index_2;
             ctx->planet->generator_indices[ctx->start_index++] = vertex_index_3;
@@ -214,7 +250,7 @@ construct_subdivided_face(struct face_generation_context* ctx)
     // clang-format on
 
     // normalize accumulated normals
-    for (size_t i = 0;
+    for (uint32_t i = 0;
          i < (ctx->params->subdivisions + 1) * (ctx->params->subdivisions + 1);
          i++) {
         vec3norm(ctx->planet->generator_normals + i);
@@ -233,9 +269,9 @@ construct_subdivided_cube(
     static const float half_scale = PLANET_RADIUS / 2.0f;
     const float        interval   = PLANET_RADIUS / (float)params->subdivisions;
 
-    const size_t vertices_per_face =
+    const uint32_t vertices_per_face =
         (params->subdivisions + 1) * (params->subdivisions + 1);
-    const size_t indices_per_face =
+    const uint32_t indices_per_face =
         params->subdivisions * params->subdivisions * 2 * 3;
 
     SDL_ThreadFunction thread_main =
@@ -316,7 +352,7 @@ construct_subdivided_cube(
         thread_main, "bottom face thread", &bottom_face_context
     );
 
-    for (size_t i = 0; i < 6; i++) {
+    for (uint32_t i = 0; i < 6; i++) {
         SDL_WaitThread(threads[i], NULL);
     }
 }
@@ -324,7 +360,7 @@ construct_subdivided_cube(
 static int
 planet_generation_main(struct planet* planet)
 {
-    while (atomic_load(&planet->shutdown_signal) == 0) {
+    while (!check_shutdown_signal(planet)) {
         SDL_LockMutex(planet->mutex);
         struct generation_params configured = planet->configured_params;
         bool                     requires_regeneration =
@@ -332,9 +368,9 @@ planet_generation_main(struct planet* planet)
         SDL_UnlockMutex(planet->mutex);
 
         if (requires_regeneration) {
-            size_t vertex_count = (configured.subdivisions + 1) *
+            uint32_t vertex_count = (configured.subdivisions + 1) *
                                   (configured.subdivisions + 1) * 6;
-            size_t index_count = (configured.subdivisions) *
+            uint32_t index_count = (configured.subdivisions) *
                                  (configured.subdivisions) * 2 * 3 * 6;
             assert(vertex_count <= PLANET_MAX_VERTICES);
             assert(index_count <= PLANET_MAX_INDICES);
@@ -364,7 +400,7 @@ planet_generation_main(struct planet* planet)
             SDL_UnlockMutex(planet->mutex);
         }
 
-        if (atomic_load(&planet->shutdown_signal) != 0) break;
+        if (check_shutdown_signal(planet)) break;
         SDL_Delay(1);
     }
     return 0;
@@ -426,7 +462,7 @@ planet_destroy(struct planet* planet)
 {
     if (planet == NULL) return;
     simplex_context_destroy(planet->simplex);
-    atomic_store(&planet->shutdown_signal, 1);
+    set_shutdown_signal(planet);
     SDL_WaitThread(planet->thread, NULL);
     SDL_DestroyMutex(planet->mutex);
     free(planet->vertices);
