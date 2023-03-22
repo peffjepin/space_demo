@@ -59,10 +59,76 @@ struct face_generation_context {
     struct vec3               dy;
 };
 
+// if subdivisions have not changed we can avoid regenerating the geometry and
+// just recalculate vertex positions/normals
+static int
+regenerate_face(struct face_generation_context* ctx)
+{
+    static const struct vec3 vec3zero = {0.0f, 0.0f, 0.0f};
+
+    const size_t vertices_per_face =
+        (ctx->params->subdivisions + 1) * (ctx->params->subdivisions + 1);
+    const size_t indices_per_face =
+        ctx->params->subdivisions * ctx->params->subdivisions * 2 * 3;
+
+    for (size_t i = ctx->start_vertex;
+         i < ctx->start_vertex + vertices_per_face;
+         i++) {
+        ctx->planet->generator_normals[i] = vec3zero;
+
+        // we're safe to touch these without sync as long as we're only reading
+        struct vec3 vertex = ctx->planet->vertices[i];
+        vec3norm(&vertex);
+        float noise = terrain_noise(
+            ctx->planet->simplex,
+            vertex,
+            ctx->params->noise_layers,
+            ctx->params->noise_gain,
+            ctx->params->noise_frequency,
+            ctx->params->noise_lacunarity
+        );
+        vec3imuls(&vertex, PLANET_RADIUS + noise * ctx->params->noise_scale);
+        ctx->planet->generator_vertices[i] = vertex;
+    }
+
+    for (size_t i = ctx->start_index; i < ctx->start_index + indices_per_face;
+         i += 3) {
+        const size_t index_1 = ctx->planet->indices[i + 0];
+        const size_t index_2 = ctx->planet->indices[i + 1];
+        const size_t index_3 = ctx->planet->indices[i + 2];
+
+        // set indices because the generator buffer might not have these indices
+        // in it yet
+        ctx->planet->generator_indices[i + 0] = index_1;
+        ctx->planet->generator_indices[i + 1] = index_2;
+        ctx->planet->generator_indices[i + 2] = index_3;
+
+        struct vec3 vertex_1 = ctx->planet->generator_vertices[index_1];
+        struct vec3 vertex_2 = ctx->planet->generator_vertices[index_2];
+        struct vec3 vertex_3 = ctx->planet->generator_vertices[index_3];
+
+        struct vec3 edge1  = vec3sub(vertex_3, vertex_1);
+        struct vec3 edge2  = vec3sub(vertex_2, vertex_1);
+        struct vec3 normal = vec3cross(edge1, edge2);
+
+        vec3iadd(ctx->planet->generator_normals + index_1, normal);
+        vec3iadd(ctx->planet->generator_normals + index_2, normal);
+        vec3iadd(ctx->planet->generator_normals + index_3, normal);
+    }
+
+    for (size_t i = ctx->start_vertex;
+         i < ctx->start_vertex + vertices_per_face;
+         i++) {
+        vec3norm(ctx->planet->generator_normals + i);
+    }
+
+    return 0;
+}
+
 static int
 construct_subdivided_face(struct face_generation_context* ctx)
 {
-    static const struct vec3 vec3zero = {0.0f};
+    static const struct vec3 vec3zero = {0.0f, 0.0f, 0.0f};
 
     // construct vertices
     for (size_t y = 0; y < ctx->params->subdivisions + 1; y++) {
@@ -159,7 +225,9 @@ construct_subdivided_face(struct face_generation_context* ctx)
 
 static void
 construct_subdivided_cube(
-    struct planet* planet, struct generation_params* params
+    struct planet*            planet,
+    struct generation_params* params,
+    bool                      generate_geometry
 )
 {
     static const float half_scale = PLANET_RADIUS / 2.0f;
@@ -170,6 +238,9 @@ construct_subdivided_cube(
     const size_t indices_per_face =
         params->subdivisions * params->subdivisions * 2 * 3;
 
+    SDL_ThreadFunction thread_main =
+        (generate_geometry) ? (SDL_ThreadFunction)construct_subdivided_face
+                            : (SDL_ThreadFunction)regenerate_face;
     SDL_Thread* threads[6];
 
     struct face_generation_context front_face_context = {
@@ -181,11 +252,8 @@ construct_subdivided_cube(
         .dx           = (struct vec3){interval, 0.0f, 0.0f},
         .dy           = (struct vec3){0.0f, interval, 0.0f},
     };
-    threads[0] = SDL_CreateThread(
-        (SDL_ThreadFunction)construct_subdivided_face,
-        "front face thread",
-        &front_face_context
-    );
+    threads[0] =
+        SDL_CreateThread(thread_main, "front face thread", &front_face_context);
 
     struct face_generation_context left_face_context = {
         .planet       = planet,
@@ -196,11 +264,8 @@ construct_subdivided_cube(
         .dx           = (struct vec3){0.0f, 0.0f, -interval},
         .dy           = (struct vec3){0.0f, interval, 0.0f},
     };
-    threads[1] = SDL_CreateThread(
-        (SDL_ThreadFunction)construct_subdivided_face,
-        "left face thread",
-        &left_face_context
-    );
+    threads[1] =
+        SDL_CreateThread(thread_main, "left face thread", &left_face_context);
 
     struct face_generation_context back_face_context = {
         .planet       = planet,
@@ -211,11 +276,8 @@ construct_subdivided_cube(
         .dx           = (struct vec3){-interval, 0.0f, 0.0f},
         .dy           = (struct vec3){0.0f, interval, 0.0f},
     };
-    threads[2] = SDL_CreateThread(
-        (SDL_ThreadFunction)construct_subdivided_face,
-        "back face thread",
-        &back_face_context
-    );
+    threads[2] =
+        SDL_CreateThread(thread_main, "back face thread", &back_face_context);
 
     struct face_generation_context right_face_context = {
         .planet       = planet,
@@ -226,11 +288,8 @@ construct_subdivided_cube(
         .dx           = (struct vec3){0.0f, 0.0f, interval},
         .dy           = (struct vec3){0.0f, interval, 0.0f},
     };
-    threads[3] = SDL_CreateThread(
-        (SDL_ThreadFunction)construct_subdivided_face,
-        "right face thread",
-        &right_face_context
-    );
+    threads[3] =
+        SDL_CreateThread(thread_main, "right face thread", &right_face_context);
 
     struct face_generation_context top_face_context = {
         .planet       = planet,
@@ -241,11 +300,8 @@ construct_subdivided_cube(
         .dx           = (struct vec3){interval, 0.0f, 0.0f},
         .dy           = (struct vec3){0.0f, 0.0f, -interval},
     };
-    threads[4] = SDL_CreateThread(
-        (SDL_ThreadFunction)construct_subdivided_face,
-        "top face thread",
-        &top_face_context
-    );
+    threads[4] =
+        SDL_CreateThread(thread_main, "top face thread", &top_face_context);
 
     struct face_generation_context bottom_face_context = {
         .planet       = planet,
@@ -257,9 +313,7 @@ construct_subdivided_cube(
         .dy           = (struct vec3){0.0f, 0.0f, interval},
     };
     threads[5] = SDL_CreateThread(
-        (SDL_ThreadFunction)construct_subdivided_face,
-        "bottom face thread",
-        &bottom_face_context
+        thread_main, "bottom face thread", &bottom_face_context
     );
 
     for (size_t i = 0; i < 6; i++) {
@@ -285,7 +339,11 @@ planet_generation_main(struct planet* planet)
             assert(vertex_count <= PLANET_MAX_VERTICES);
             assert(index_count <= PLANET_MAX_INDICES);
 
-            construct_subdivided_cube(planet, &configured);
+            construct_subdivided_cube(
+                planet,
+                &configured,
+                planet->generated_params.subdivisions != configured.subdivisions
+            );
 
             SDL_LockMutex(planet->mutex);
 
