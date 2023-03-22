@@ -1,4 +1,4 @@
-.PHONY: all clean shaders
+.PHONY: clean shaders debug demo
 
 CC ?= gcc
 C++ ?= g++
@@ -54,8 +54,12 @@ bin/demo: $(DEMO_OBJECTS) $(COMPILED_SHADERS)
 	$(C++) $(DEMO_OBJECTS) $(FLAGS) $(VULKAN_CFLAGS) $(SDL_CFLAGS) $(VULKAN_LIBS) $(SDL_LIBS) -o $@
 
 shaders: $(COMPILED_SHADERS)
-	
-all: bin/demo
+
+debug:
+	EXTRA_FLAGS+=" -g" make bin/demo
+
+demo:
+	EXTRA_FLAGS+=" -O3" make bin/demo
 
 clean:
 	rm -rf build
