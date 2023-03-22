@@ -40,15 +40,15 @@ main()
         f_color = FLAT_GRADE_1_COLOR;
     }
     else if (flatness > GRADE_2_THRESHOLD) {
-        float t = (1.0f - flatness) / GRADE_2_THRESHOLD;
+        float t = (1.0f - flatness) / (1.0f - GRADE_2_THRESHOLD);
         f_color = mix(FLAT_GRADE_2_COLOR, FLAT_GRADE_1_COLOR, t);
     }
     else if (flatness > GRADE_3_THRESHOLD) {
-        float t = (1.0f - flatness) / GRADE_3_THRESHOLD;
+        float t = (1.0f - flatness) / (1.0f - GRADE_3_THRESHOLD);
         f_color = mix(FLAT_GRADE_3_COLOR, FLAT_GRADE_2_COLOR, t);
     }
     else if (flatness > GRADE_4_THRESHOLD) {
-        float t = (1.0f - flatness) / GRADE_4_THRESHOLD;
+        float t = (1.0f - flatness) / (1.0f - GRADE_4_THRESHOLD);
         f_color = mix(FLAT_GRADE_3_COLOR, FLAT_GRADE_2_COLOR, t);
     }
     else {
