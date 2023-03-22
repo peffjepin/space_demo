@@ -12,6 +12,10 @@
 
 struct generation_params {
     uint32_t subdivisions;
+    uint32_t noise_layers;
+    float    noise_gain;
+    float    noise_frequency;
+    float    noise_lacunarity;
 };
 
 static bool
@@ -19,7 +23,7 @@ generation_params_equal(
     struct generation_params* p1, struct generation_params* p2
 )
 {
-    return p1->subdivisions == p2->subdivisions;
+    return memcmp(p1, p2, sizeof *p1) == 0;
 }
 
 struct planet {
@@ -45,23 +49,24 @@ struct planet {
 };
 
 struct face_generation_context {
-    struct planet* planet;
-    uint32_t       subdivisions;
-    size_t         start_vertex;
-    size_t         start_index;
-    struct vec3    corner;
-    struct vec3    dx;
-    struct vec3    dy;
+    struct planet*            planet;
+    struct generation_params* params;
+    size_t                    start_vertex;
+    size_t                    start_index;
+    struct vec3               corner;
+    struct vec3               dx;
+    struct vec3               dy;
 };
 
 static int
 construct_subdivided_face(struct face_generation_context* ctx)
 {
-    static const struct vec3 vec3zero = {0};
+    static const struct vec3 vec3zero     = {0.0f};
+    static const float       HEIGHT_SCALE = PLANET_RADIUS / 5.0f;
 
     // construct vertices
-    for (size_t y = 0; y < ctx->subdivisions + 1; y++) {
-        for (size_t x = 0; x < ctx->subdivisions + 1; x++) {
+    for (size_t y = 0; y < ctx->params->subdivisions + 1; y++) {
+        for (size_t x = 0; x < ctx->params->subdivisions + 1; x++) {
             struct vec3 vertex = ctx->corner;
             vertex.x += ctx->dx.x * (float)x;
             vertex.y += ctx->dx.y * (float)x;
@@ -72,32 +77,33 @@ construct_subdivided_face(struct face_generation_context* ctx)
             // assumes the caller is responsible for centering the cube about
             // (0,0,0)
             vec3norm(&vertex);
-            float height =
-                PLANET_RADIUS + terrain_noise(ctx->planet->simplex, vertex);
-            vertex.x *= height;
-            vertex.y *= height;
-            vertex.z *= height;
+            float noise = terrain_noise(
+                ctx->planet->simplex,
+                vertex,
+                ctx->params->noise_layers,
+                ctx->params->noise_gain,
+                ctx->params->noise_frequency,
+                ctx->params->noise_lacunarity
+            );
+            vec3imuls(&vertex, PLANET_RADIUS + noise * HEIGHT_SCALE);
 
-            size_t local_vertex_index = y * (ctx->subdivisions + 1) + x;
-            ctx->planet
-                ->generator_vertices[ctx->start_vertex + local_vertex_index] =
-                vertex;
-            ctx->planet
-                ->generator_normals[ctx->start_vertex + local_vertex_index] =
-                vec3zero;
+            size_t vertex_index =
+                ctx->start_vertex + y * (ctx->params->subdivisions + 1) + x;
+            ctx->planet->generator_vertices[vertex_index] = vertex;
+            ctx->planet->generator_normals[vertex_index]  = vec3zero;
         }
     }
 
     // clang-format off
     // accumulate normals and construct indices
-    for (size_t y = 0; y < ctx->subdivisions; y++) {
-        for (size_t x = 0; x < ctx->subdivisions; x++) {
+    for (size_t y = 0; y < ctx->params->subdivisions; y++) {
+        for (size_t x = 0; x < ctx->params->subdivisions; x++) {
             // first triangle
             //
             // indices
-            size_t vertex_index_1 = ctx->start_vertex + y * (ctx->subdivisions + 1) + x;
-            size_t vertex_index_2 = ctx->start_vertex + y * (ctx->subdivisions + 1) + x + 1;
-            size_t vertex_index_3 = ctx->start_vertex + (y + 1) * (ctx->subdivisions + 1) + x;
+            size_t vertex_index_1 = ctx->start_vertex + y * (ctx->params->subdivisions + 1) + x;
+            size_t vertex_index_2 = ctx->start_vertex + y * (ctx->params->subdivisions + 1) + x + 1;
+            size_t vertex_index_3 = ctx->start_vertex + (y + 1) * (ctx->params->subdivisions + 1) + x;
             ctx->planet->generator_indices[ctx->start_index++] = vertex_index_1;
             ctx->planet->generator_indices[ctx->start_index++] = vertex_index_2;
             ctx->planet->generator_indices[ctx->start_index++] = vertex_index_3;
@@ -118,9 +124,9 @@ construct_subdivided_face(struct face_generation_context* ctx)
             // second triangle
             //
             // indices
-            vertex_index_1 = ctx->start_vertex + y * (ctx->subdivisions + 1) + x + 1;
-            vertex_index_2 = ctx->start_vertex + (y + 1) * (ctx->subdivisions + 1) + x + 1;
-            vertex_index_3 = ctx->start_vertex + (y + 1) * (ctx->subdivisions + 1) + x;
+            vertex_index_1 = ctx->start_vertex + y * (ctx->params->subdivisions + 1) + x + 1;
+            vertex_index_2 = ctx->start_vertex + (y + 1) * (ctx->params->subdivisions + 1) + x + 1;
+            vertex_index_3 = ctx->start_vertex + (y + 1) * (ctx->params->subdivisions + 1) + x;
             ctx->planet->generator_indices[ctx->start_index++] = vertex_index_1;
             ctx->planet->generator_indices[ctx->start_index++] = vertex_index_2;
             ctx->planet->generator_indices[ctx->start_index++] = vertex_index_3;
@@ -140,7 +146,8 @@ construct_subdivided_face(struct face_generation_context* ctx)
     // clang-format on
 
     // normalize accumulated normals
-    for (size_t i = 0; i < (ctx->subdivisions + 1) * (ctx->subdivisions + 1);
+    for (size_t i = 0;
+         i < (ctx->params->subdivisions + 1) * (ctx->params->subdivisions + 1);
          i++) {
         vec3norm(ctx->planet->generator_normals + i);
     }
@@ -149,18 +156,23 @@ construct_subdivided_face(struct face_generation_context* ctx)
 }
 
 static void
-construct_subdivided_cube(struct planet* planet, uint32_t subdivisions)
+construct_subdivided_cube(
+    struct planet* planet, struct generation_params* params
+)
 {
-    static const float half_scale  = PLANET_RADIUS / 2.0f;
-    const float        interval    = PLANET_RADIUS / (float)subdivisions;
-    const size_t vertices_per_face = (subdivisions + 1) * (subdivisions + 1);
-    const size_t indices_per_face  = subdivisions * subdivisions * 2 * 3;
+    static const float half_scale = PLANET_RADIUS / 2.0f;
+    const float        interval   = PLANET_RADIUS / (float)params->subdivisions;
+
+    const size_t vertices_per_face =
+        (params->subdivisions + 1) * (params->subdivisions + 1);
+    const size_t indices_per_face =
+        params->subdivisions * params->subdivisions * 2 * 3;
 
     SDL_Thread* threads[6];
 
     struct face_generation_context front_face_context = {
         .planet       = planet,
-        .subdivisions = subdivisions,
+        .params       = params,
         .start_vertex = 0 * vertices_per_face,
         .start_index  = 0 * indices_per_face,
         .corner       = (struct vec3){-half_scale, -half_scale, -half_scale},
@@ -175,7 +187,7 @@ construct_subdivided_cube(struct planet* planet, uint32_t subdivisions)
 
     struct face_generation_context left_face_context = {
         .planet       = planet,
-        .subdivisions = subdivisions,
+        .params       = params,
         .start_vertex = 1 * vertices_per_face,
         .start_index  = 1 * indices_per_face,
         .corner       = (struct vec3){-half_scale, -half_scale, half_scale},
@@ -190,7 +202,7 @@ construct_subdivided_cube(struct planet* planet, uint32_t subdivisions)
 
     struct face_generation_context back_face_context = {
         .planet       = planet,
-        .subdivisions = subdivisions,
+        .params       = params,
         .start_vertex = 2 * vertices_per_face,
         .start_index  = 2 * indices_per_face,
         .corner       = (struct vec3){half_scale, -half_scale, half_scale},
@@ -205,7 +217,7 @@ construct_subdivided_cube(struct planet* planet, uint32_t subdivisions)
 
     struct face_generation_context right_face_context = {
         .planet       = planet,
-        .subdivisions = subdivisions,
+        .params       = params,
         .start_vertex = 3 * vertices_per_face,
         .start_index  = 3 * indices_per_face,
         .corner       = (struct vec3){half_scale, -half_scale, -half_scale},
@@ -220,7 +232,7 @@ construct_subdivided_cube(struct planet* planet, uint32_t subdivisions)
 
     struct face_generation_context top_face_context = {
         .planet       = planet,
-        .subdivisions = subdivisions,
+        .params       = params,
         .start_vertex = 4 * vertices_per_face,
         .start_index  = 4 * indices_per_face,
         .corner       = (struct vec3){-half_scale, -half_scale, half_scale},
@@ -235,7 +247,7 @@ construct_subdivided_cube(struct planet* planet, uint32_t subdivisions)
 
     struct face_generation_context bottom_face_context = {
         .planet       = planet,
-        .subdivisions = subdivisions,
+        .params       = params,
         .start_vertex = 5 * vertices_per_face,
         .start_index  = 5 * indices_per_face,
         .corner       = (struct vec3){-half_scale, half_scale, -half_scale},
@@ -271,7 +283,7 @@ planet_generation_main(struct planet* planet)
             assert(vertex_count <= PLANET_MAX_VERTICES);
             assert(index_count <= PLANET_MAX_INDICES);
 
-            construct_subdivided_cube(planet, configured.subdivisions);
+            construct_subdivided_cube(planet, &configured);
 
             SDL_LockMutex(planet->mutex);
 
@@ -325,9 +337,14 @@ planet_create(uint32_t subdivisions)
         !planet->generator_normals)
         goto memory_error;
 
-    planet->simplex                        = simplex_context_create(0);
-    planet->configured_params.subdivisions = subdivisions;
-    planet->mutex                          = SDL_CreateMutex();
+    planet->configured_params.subdivisions     = subdivisions;
+    planet->configured_params.noise_gain       = NOISE_INITIAL_GAIN;
+    planet->configured_params.noise_frequency  = NOISE_INITIAL_FREQUENCY;
+    planet->configured_params.noise_lacunarity = NOISE_INITIAL_LACUNARITY;
+    planet->configured_params.noise_layers     = NOISE_INITIAL_LAYERS;
+
+    planet->simplex = simplex_context_create(0);
+    planet->mutex   = SDL_CreateMutex();
     if (!planet->mutex) goto memory_error;
 
     planet->thread = SDL_CreateThread(
@@ -378,6 +395,38 @@ planet_set_subdivisions(struct planet* planet, uint32_t subdivisions)
     }
     SDL_LockMutex(planet->mutex);
     planet->configured_params.subdivisions = subdivisions;
+    SDL_UnlockMutex(planet->mutex);
+}
+
+void
+planet_set_noise_layers(struct planet* planet, uint32_t layers)
+{
+    SDL_LockMutex(planet->mutex);
+    planet->configured_params.noise_layers = layers;
+    SDL_UnlockMutex(planet->mutex);
+}
+
+void
+planet_set_noise_gain(struct planet* planet, float gain)
+{
+    SDL_LockMutex(planet->mutex);
+    planet->configured_params.noise_gain = gain;
+    SDL_UnlockMutex(planet->mutex);
+}
+
+void
+planet_set_noise_frequency(struct planet* planet, float frequency)
+{
+    SDL_LockMutex(planet->mutex);
+    planet->configured_params.noise_frequency = frequency;
+    SDL_UnlockMutex(planet->mutex);
+}
+
+void
+planet_set_noise_lacunarity(struct planet* planet, float lacunarity)
+{
+    SDL_LockMutex(planet->mutex);
+    planet->configured_params.noise_lacunarity = lacunarity;
     SDL_UnlockMutex(planet->mutex);
 }
 

@@ -94,17 +94,51 @@ main(void)
         static int previous_subdivisions = INITIAL_SUBDIVISIONS;
         static int subdivisions          = INITIAL_SUBDIVISIONS;
         imgui_slideri(
-            "Subdivisions", &subdivisions, 1, PLANET_MAX_SUBDIVISIONS
+            "xubdivisions", &subdivisions, 1, PLANET_MAX_SUBDIVISIONS
         );
         if (subdivisions != previous_subdivisions) {
             previous_subdivisions = subdivisions;
             planet_set_subdivisions(planet, subdivisions);
         }
 
-        static float slider1 = 0.0f;
-        static float slider2 = 0.0f;
-        imgui_sliderf("Slider 1", &slider1, 0.0f, 1.0f);
-        imgui_sliderf("Slider 2", &slider2, 0.0f, 1.0f);
+        static int previous_layers = NOISE_INITIAL_LAYERS;
+        static int layers          = NOISE_INITIAL_LAYERS;
+        imgui_slideri("layers", &layers, NOISE_MIN_LAYERS, NOISE_MAX_LAYERS);
+        if (layers != previous_layers) {
+            previous_layers = layers;
+            planet_set_noise_layers(planet, layers);
+        }
+
+        static float previous_gain = NOISE_INITIAL_GAIN;
+        static float gain          = NOISE_INITIAL_GAIN;
+        imgui_sliderf("gain", &gain, NOISE_MIN_GAIN, NOISE_MAX_GAIN);
+        if (gain != previous_gain) {
+            previous_gain = gain;
+            planet_set_noise_gain(planet, gain);
+        }
+
+        static float previous_frequency = NOISE_INITIAL_FREQUENCY;
+        static float frequency          = NOISE_INITIAL_FREQUENCY;
+        imgui_sliderf(
+            "frequency", &frequency, NOISE_MIN_FREQUENCY, NOISE_MAX_FREQUENCY
+        );
+        if (frequency != previous_frequency) {
+            previous_frequency = frequency;
+            planet_set_noise_frequency(planet, frequency);
+        }
+
+        static float previous_lacunarity = NOISE_INITIAL_LACUNARITY;
+        static float lacunarity          = NOISE_INITIAL_LACUNARITY;
+        imgui_sliderf(
+            "lacunarity",
+            &lacunarity,
+            NOISE_MIN_LACUNARITY,
+            NOISE_MAX_LACUNARITY
+        );
+        if (lacunarity != previous_lacunarity) {
+            previous_lacunarity = lacunarity;
+            planet_set_noise_lacunarity(planet, lacunarity);
+        }
 
         imgui_end();
 
