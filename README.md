@@ -63,7 +63,7 @@ set OPTIMIZE=/Ox
 build
 ```
 
-You can also manually set up your environment (see build.bat for ):
+You can also manually set up your environment (see build.bat for more info):
 
 ```cmd
 set VULKAN_SDK=...
