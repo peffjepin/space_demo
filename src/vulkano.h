@@ -25,7 +25,7 @@
 #endif
 
 #ifndef VULKANO_TIMEOUT
-#define VULKANO_TIMEOUT (5lu * 1000000000lu)  // 5 seconds
+#define VULKANO_TIMEOUT 5lu * 1000000000lu  // 5 seconds
 #endif
 
 #ifndef VULKANO_DEPTH_FORMAT
@@ -33,10 +33,8 @@
 #endif
 
 typedef int (*gpu_compare_function)(VkPhysicalDevice*, VkPhysicalDevice*);
-typedef int (*surface_format_compare_function
-)(VkSurfaceFormatKHR*, VkSurfaceFormatKHR*);
-typedef int (*present_mode_compare_function
-)(VkPresentModeKHR*, VkPresentModeKHR*);
+typedef int (*surface_format_compare_function)(VkSurfaceFormatKHR*, VkSurfaceFormatKHR*);
+typedef int (*present_mode_compare_function)(VkPresentModeKHR*, VkPresentModeKHR*);
 
 // returns NULL on success, or an error message on an error
 typedef const char* (*surface_creation_function)(VkInstance, VkSurfaceKHR*);
@@ -97,9 +95,9 @@ struct vulkano_sampler {
 };
 
 // TODO: this seems like it belongs with the swapchain, but has a separate
-// lifetime because it's not recreated when the swapchain resources are
-// recreated on resize. It works as is for now, but may be worth redesigning
-// slightly in the future.
+// lifetime because it's not recreated when the swapchain resources are recreated
+// on resize. It works as is for now, but may be worth redesigning slightly in the
+// future.
 struct vulkano_per_frame_state {
     VkSemaphore     image_ready_for_use;
     VkSemaphore     rendering_commands_complete;
@@ -255,51 +253,43 @@ void vulkano_allocate_descriptor_sets(struct vulkano*, VkDescriptorSetAllocateIn
 
 #define VULKANO_WIDTH(vulkano) (vulkano)->swapchain.extent.width
 #define VULKANO_HEIGHT(vulkano) (vulkano)->swapchain.extent.height
-#define VULKANO_VIEWPORT(vulkano)                                              \
-    (VkViewport)                                                               \
-    {                                                                          \
-        .width  = (float)VULKANO_WIDTH(vulkano),                               \
-        .height = (float)VULKANO_HEIGHT(vulkano), .maxDepth = 1.0f             \
+#define VULKANO_VIEWPORT(vulkano)                                                        \
+    (VkViewport)                                                                         \
+    {                                                                                    \
+        .width = (float)VULKANO_WIDTH(vulkano),                                          \
+        .height = (float)VULKANO_HEIGHT(vulkano), .maxDepth = 1.0f                       \
     }
-#define VULKANO_SCISSOR(vulkano)                                               \
+#define VULKANO_SCISSOR(vulkano)                                                         \
     (VkRect2D) { .extent = (vulkano)->swapchain.extent }
 
 const char* vkresult_to_string(VkResult);
 
-void vulkano_log(
-    const char* label, const char* filepath, int line, const char* message
-);
+void vulkano_log(const char* label, const char* filepath, int line, const char* message);
 void vulkano_logf(
     const char* label, const char* filepath, int line, const char* fmt, ...
 );
 
-#define VULKANO_INFO(message)                                                  \
-    vulkano_log("[INFO]", __FILE__, __LINE__, message);
-#define VULKANO_INFOF(fmt, ...)                                                \
-    vulkano_logf("[INFO]", __FILE__, __LINE__, fmt, __VA_ARGS__);
-#define VULKANO_ERROR(message)                                                 \
-    vulkano_log("[ERROR]", __FILE__, __LINE__, message);
-#define VULKANO_ERRORF(fmt, ...)                                               \
+#define VULKANO_INFO(message) vulkano_log("[INFO]", NULL, __LINE__, message);
+#define VULKANO_INFOF(fmt, ...) vulkano_logf("[INFO]", NULL, __LINE__, fmt, __VA_ARGS__);
+#define VULKANO_ERROR(message) vulkano_log("[ERROR]", __FILE__, __LINE__, message);
+#define VULKANO_ERRORF(fmt, ...)                                                         \
     vulkano_logf("[ERROR]", __FILE__, __LINE__, fmt, __VA_ARGS__);
 
-#define VULKANO_CHECK(expression, error)                                       \
-    do {                                                                       \
-        if (*error) break;                                                     \
-        VkResult check_result = expression;                                    \
-        if (check_result == VK_ERROR_OUT_OF_HOST_MEMORY ||                     \
-            check_result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {                   \
-            VULKANO_ERRORF(                                                    \
-                "out of memory (%s)\n", vkresult_to_string(check_result)       \
-            );                                                                 \
-            *error = VULKANO_ERROR_CODE_OUT_OF_MEMORY;                         \
-        }                                                                      \
-        else if (check_result != VK_SUCCESS) {                                 \
-            VULKANO_ERRORF(                                                    \
-                "fatal error encountered (%s)\n",                              \
-                vkresult_to_string(check_result)                               \
-            );                                                                 \
-            *error = VULKANO_ERROR_CODE_FATAL_ERROR;                           \
-        }                                                                      \
+#define VULKANO_CHECK(expression, error)                                                 \
+    do {                                                                                 \
+        if (*error) break;                                                               \
+        VkResult check_result = expression;                                              \
+        if (check_result == VK_ERROR_OUT_OF_HOST_MEMORY ||                               \
+            check_result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {                             \
+            VULKANO_ERRORF("out of memory (%s)\n", vkresult_to_string(check_result));    \
+            *error = VULKANO_ERROR_CODE_OUT_OF_MEMORY;                                   \
+        }                                                                                \
+        else if (check_result != VK_SUCCESS) {                                           \
+            VULKANO_ERRORF(                                                              \
+                "fatal error encountered (%s)\n", vkresult_to_string(check_result)       \
+            );                                                                           \
+            *error = VULKANO_ERROR_CODE_FATAL_ERROR;                                     \
+        }                                                                                \
     } while (0)
 
 //
@@ -312,31 +302,34 @@ void vulkano_logf(
 
 #ifdef VULKANO_IMPLEMENTATION
 
+
 void
-vulkano_log(
-    const char* label, const char* filepath, int line, const char* message
-)
+vulkano_log(const char* label, const char* filepath, int line, const char* message)
 {
 #ifndef VULKANO_DISABLE_LOG
-    fprintf(VULKANO_LOG_FILE, "%s (%s:%i): %s", label, filepath, line, message);
+    if (filepath)
+        fprintf(VULKANO_LOG_FILE, "%s (%s:%i): %s", label, filepath, line, message);
+    else
+        fprintf(VULKANO_LOG_FILE, "%s: %s", label, message);
 #endif
 }
 
 void
-vulkano_logf(
-    const char* label, const char* filepath, int line, const char* fmt, ...
-)
+vulkano_logf(const char* label, const char* filepath, int line, const char* fmt, ...)
 {
 #ifndef VULKANO_DISABLE_LOG
     va_list args;
     va_start(args, fmt);
-    fprintf(VULKANO_LOG_FILE, "%s (%s:%i): ", label, filepath, line);
+    if (filepath)
+        fprintf(VULKANO_LOG_FILE, "%s (%s:%i): ", label, filepath, line);
+    else
+        fprintf(VULKANO_LOG_FILE, "%s: ", label);
     vfprintf(VULKANO_LOG_FILE, fmt, args);
     va_end(args);
 #endif
 }
 
-#define VULKANO_CLAMP(min, max, value)                                         \
+#define VULKANO_CLAMP(min, max, value)                                                   \
     ((value < min) ? min : ((value > max) ? max : value))
 
 typedef int (*compare_function)(const void*, const void*);
@@ -359,7 +352,7 @@ struct {
 static void* init_malloc(size_t);
 static void  free_init_allocations(void);
 
-#define VULKANO_INIT_MALLOC_ARRAY(pointer, capacity)                           \
+#define VULKANO_INIT_MALLOC_ARRAY(pointer, capacity)                                     \
     pointer = init_malloc((sizeof *(pointer)) * capacity)
 
 static struct string_array combine_string_arrays_unique(
@@ -371,8 +364,7 @@ static const char* color_format_to_string(VkFormat fmt);
 static const char* color_space_to_string(VkColorSpaceKHR space);
 static const char* gpu_name(VkPhysicalDevice gpu);
 static int         default_gpu_compare(VkPhysicalDevice*, VkPhysicalDevice*);
-static int
-default_surface_format_compare(VkSurfaceFormatKHR*, VkSurfaceFormatKHR*);
+static int default_surface_format_compare(VkSurfaceFormatKHR*, VkSurfaceFormatKHR*);
 static int default_present_modes_compare(VkPresentModeKHR*, VkPresentModeKHR*);
 static int compare_extension_names(
     const VkExtensionProperties* ext1, const VkExtensionProperties* ext2
@@ -381,8 +373,7 @@ static int compare_layer_properties_name(
     VkLayerProperties* prop1, VkLayerProperties* prop2
 );
 
-#define DEFAULT0(value, default_value)                                         \
-    (value) = ((value)) ? (value) : (default_value)
+#define DEFAULT0(value, default_value) (value) = ((value)) ? (value) : (default_value)
 
 static void
 create_instance(
@@ -398,7 +389,7 @@ create_instance(
 
 #ifdef VULKANO_DISABLE_VALIDATION_LAYERS
     validation_layers_count = 0;
-    validation_layers       = NULL;
+    validation_layers = NULL;
 #endif
 
     VULKANO_INFO("required instance extensions:\n");
@@ -419,9 +410,7 @@ create_instance(
     VkLayerProperties* available_layers;
     VULKANO_INIT_MALLOC_ARRAY(available_layers, available_layers_count);
     VULKANO_CHECK(
-        vkEnumerateInstanceLayerProperties(
-            &available_layers_count, available_layers
-        ),
+        vkEnumerateInstanceLayerProperties(&available_layers_count, available_layers),
         error
     );
     if (*error) return;
@@ -436,10 +425,7 @@ create_instance(
     for (uint32_t i = 0; i < validation_layers_count; i++) {
         VkLayerProperties requested = {0};
         snprintf(
-            requested.layerName,
-            sizeof(requested.layerName),
-            "%s",
-            validation_layers[i]
+            requested.layerName, sizeof(requested.layerName), "%s", validation_layers[i]
         );
         if (bsearch(
                 &requested,
@@ -450,8 +436,7 @@ create_instance(
             ) == NULL) {
             *error = VULKANO_ERROR_CODE_UNSUPPORTED_VALIDATION_LAYER;
             VULKANO_ERRORF(
-                "unsupported vulkan validation layer: %s\n",
-                validation_layers[i]
+                "unsupported vulkan validation layer: %s\n", validation_layers[i]
             );
         }
     }
@@ -460,8 +445,7 @@ create_instance(
     // enumerate available instance extensions
     uint32_t supported_count = 1;
     VULKANO_CHECK(
-        vkEnumerateInstanceExtensionProperties(NULL, &supported_count, NULL),
-        error
+        vkEnumerateInstanceExtensionProperties(NULL, &supported_count, NULL), error
     );
     VkExtensionProperties* supported_extensions;
     VULKANO_INIT_MALLOC_ARRAY(supported_extensions, supported_count);
@@ -496,24 +480,20 @@ create_instance(
                 (compare_function)compare_extension_names
             ) == NULL) {
             *error = VULKANO_ERROR_CODE_UNSUPPORTED_INSTANCE_EXTENSION;
-            VULKANO_ERRORF(
-                "unsupported instance extension: %s\n", extensions[i]
-            );
+            VULKANO_ERRORF("unsupported instance extension: %s\n", extensions[i]);
         }
     }
     if (*error) return;
 
     // create instance
     VkInstanceCreateInfo vk_create_info = {
-        .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .enabledLayerCount       = validation_layers_count,
-        .ppEnabledLayerNames     = validation_layers,
-        .enabledExtensionCount   = extensions_count,
+        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+        .enabledLayerCount = validation_layers_count,
+        .ppEnabledLayerNames = validation_layers,
+        .enabledExtensionCount = extensions_count,
         .ppEnabledExtensionNames = extensions,
     };
-    VULKANO_CHECK(
-        vkCreateInstance(&vk_create_info, NULL, &vk->instance), error
-    );
+    VULKANO_CHECK(vkCreateInstance(&vk_create_info, NULL, &vk->instance), error);
     if (*error) return;
 }
 
@@ -530,8 +510,7 @@ select_present_mode(
     // query capabilities
     VkSurfaceCapabilitiesKHR capabilities;
     VULKANO_CHECK(
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &capabilities),
-        error
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &capabilities), error
     );
     if (*error) return (VkPresentModeKHR)0;
 
@@ -577,18 +556,14 @@ select_surface_format(
     // query device capabilities
     VkSurfaceCapabilitiesKHR capabilities;
     VULKANO_CHECK(
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &capabilities),
-        error
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &capabilities), error
     );
     if (*error) return (VkSurfaceFormatKHR){.format = VK_FORMAT_UNDEFINED};
 
     // enumerate available formats
     uint32_t formats_count = 1;
     VULKANO_CHECK(
-        vkGetPhysicalDeviceSurfaceFormatsKHR(
-            gpu, surface, &formats_count, NULL
-        ),
-        error
+        vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formats_count, NULL), error
     );
     VkSurfaceFormatKHR* surface_formats;
     VULKANO_INIT_MALLOC_ARRAY(surface_formats, formats_count);
@@ -691,12 +666,9 @@ confirm_gpu_selection(
         );
     }
 
-    // search for queue family that supports graphics & presentation to our
-    // surface
+    // search for queue family that supports graphics & presentation to our surface
     uint32_t queue_family_count;
-    vkGetPhysicalDeviceQueueFamilyProperties(
-        gpu->handle, &queue_family_count, NULL
-    );
+    vkGetPhysicalDeviceQueueFamilyProperties(gpu->handle, &queue_family_count, NULL);
     VkQueueFamilyProperties* queue_family_properties;
     VULKANO_INIT_MALLOC_ARRAY(queue_family_properties, queue_family_count);
 
@@ -717,9 +689,7 @@ confirm_gpu_selection(
         // on the gpu struct and return true
         if (suitable_device) {
             gpu->graphics_queue_family = i;
-            vkGetPhysicalDeviceMemoryProperties(
-                gpu->handle, &gpu->memory_properties
-            );
+            vkGetPhysicalDeviceMemoryProperties(gpu->handle, &gpu->memory_properties);
             vkGetPhysicalDeviceProperties(gpu->handle, &gpu->properties);
             return true;
         }
@@ -752,9 +722,7 @@ select_gpu(
 
     // enumerate available devices
     uint32_t device_count = 0;
-    VULKANO_CHECK(
-        vkEnumeratePhysicalDevices(vk->instance, &device_count, NULL), error
-    );
+    VULKANO_CHECK(vkEnumeratePhysicalDevices(vk->instance, &device_count, NULL), error);
     if (device_count == 0) {
         VULKANO_ERROR("no gpus visible to vulkan\n");
         *error = VULKANO_ERROR_CODE_FATAL_ERROR;
@@ -767,15 +735,8 @@ select_gpu(
     );
     if (*error) return;
 
-    qsort(
-        devices,
-        device_count,
-        sizeof(VkPhysicalDevice),
-        (compare_function)gpucmp
-    );
-    VULKANO_INFO(
-        "  available gpus listed worst->best by configured ranking function:\n"
-    );
+    qsort(devices, device_count, sizeof(VkPhysicalDevice), (compare_function)gpucmp);
+    VULKANO_INFO("  available gpus listed worst->best by configured ranking function:\n");
     for (uint32_t i = 0; i < device_count; i++)
         VULKANO_INFOF("    %s\n", gpu_name(devices[i]));
 
@@ -784,16 +745,14 @@ select_gpu(
     //
     for (uint32_t i = 0; i < device_count; i++) {
         VkPhysicalDevice gpu = devices[device_count - 1 - i];
-        vk->gpu.handle       = gpu;
+        vk->gpu.handle = gpu;
         vk->gpu.configured_present_mode =
             select_present_mode(gpu, vk->surface, presentcmp, error);
         vk->gpu.configured_surface_format =
             select_surface_format(gpu, vk->surface, fmtcmp, error);
         if (*error) return;
 
-        if (confirm_gpu_selection(
-                vk->surface, &vk->gpu, extensions_count, extensions
-            )) {
+        if (confirm_gpu_selection(vk->surface, &vk->gpu, extensions_count, extensions)) {
             VULKANO_INFOF(
                 "  configured present mode %s\n",
                 present_mode_to_string(vk->gpu.configured_present_mode)
@@ -804,9 +763,7 @@ select_gpu(
             );
             VULKANO_INFOF(
                 "  configured surface format with color space %s\n",
-                color_space_to_string(
-                    vk->gpu.configured_surface_format.colorSpace
-                )
+                color_space_to_string(vk->gpu.configured_surface_format.colorSpace)
             );
             VULKANO_INFOF("selected gpu: %s\n\n", gpu_name(vk->gpu.handle));
             return;
@@ -829,11 +786,11 @@ create_device(
 
     VkPhysicalDeviceFeatures gpu_features = {.samplerAnisotropy = VK_TRUE};
 
-    float                   queue_priorities[]   = {1.0};
+    float                   queue_priorities[] = {1.0};
     VkDeviceQueueCreateInfo queue_create_infos[] = {
         {
-            .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-            .queueCount       = 1,
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .queueCount = 1,
             .pQueuePriorities = queue_priorities,
         },
     };
@@ -841,15 +798,13 @@ create_device(
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount =
             sizeof(queue_create_infos) / sizeof(queue_create_infos[0]),
-        .pQueueCreateInfos       = queue_create_infos,
-        .enabledExtensionCount   = gpu_extensions_count,
+        .pQueueCreateInfos = queue_create_infos,
+        .enabledExtensionCount = gpu_extensions_count,
         .ppEnabledExtensionNames = gpu_extensions,
-        .pEnabledFeatures        = &gpu_features,
+        .pEnabledFeatures = &gpu_features,
     };
 
-    VULKANO_CHECK(
-        vkCreateDevice(vk->gpu.handle, &create_info, NULL, &vk->device), error
-    );
+    VULKANO_CHECK(vkCreateDevice(vk->gpu.handle, &create_info, NULL, &vk->device), error);
     if (*error) return;
 
     vkGetDeviceQueue(
@@ -867,7 +822,7 @@ create_device(
 struct vulkano
 vulkano_create(struct vulkano_config config, VulkanoError* error)
 {
-    struct vulkano vk            = {0};
+    struct vulkano vk = {0};
     const char*    surface_error = NULL;
 
     if (!config.surface_creation) {
@@ -895,19 +850,18 @@ vulkano_create(struct vulkano_config config, VulkanoError* error)
 
     static struct string_array LIBRARY_REQUIRED_GPU_EXTENSIONS = {
         .count = 0,
-        .data  = NULL,
+        .data = NULL,
     };
     static struct string_array LIBRARY_REQUIRED_INSTANCE_EXTENSIONS = {
         .count = 0,
-        .data  = NULL,
+        .data = NULL,
     };
     static struct string_array LIBRARY_REQUIRED_VALIDATION_LAYERS = {
         .count = 0,
-        .data  = NULL,
+        .data = NULL,
     };
 #ifdef VULKANO_ENABLE_DEFAULT_VALIDATION_LAYERS
-    LIBRARY_REQUIRED_VALIDATION_LAYERS.data =
-        DEFAULT_INSTANCE_VALIDATION_LAYERS;
+    LIBRARY_REQUIRED_VALIDATION_LAYERS.data = DEFAULT_INSTANCE_VALIDATION_LAYERS;
     LIBRARY_REQUIRED_VALIDATION_LAYERS.count =
         sizeof(DEFAULT_INSTANCE_VALIDATION_LAYERS) / sizeof(const char*);
 #endif
@@ -922,25 +876,22 @@ vulkano_create(struct vulkano_config config, VulkanoError* error)
     //
     struct string_array user_required_validation_layers = {
         .count = config.validation_layers_count,
-        .data  = config.validation_layers,
+        .data = config.validation_layers,
     };
     struct string_array user_required_instance_extensions = {
         .count = config.instance_extensions_count,
-        .data  = config.instance_extensions,
+        .data = config.instance_extensions,
     };
     struct string_array user_required_gpu_extensions = {
         .count = config.gpu_extensions_count,
-        .data  = config.gpu_extensions,
+        .data = config.gpu_extensions,
     };
-    struct string_array required_validation_layers =
-        combine_string_arrays_unique(
-            LIBRARY_REQUIRED_VALIDATION_LAYERS, user_required_validation_layers
-        );
-    struct string_array required_instance_extensions =
-        combine_string_arrays_unique(
-            LIBRARY_REQUIRED_INSTANCE_EXTENSIONS,
-            user_required_instance_extensions
-        );
+    struct string_array required_validation_layers = combine_string_arrays_unique(
+        LIBRARY_REQUIRED_VALIDATION_LAYERS, user_required_validation_layers
+    );
+    struct string_array required_instance_extensions = combine_string_arrays_unique(
+        LIBRARY_REQUIRED_INSTANCE_EXTENSIONS, user_required_instance_extensions
+    );
     struct string_array required_gpu_extensions = combine_string_arrays_unique(
         LIBRARY_REQUIRED_GPU_EXTENSIONS, user_required_gpu_extensions
     );
@@ -1005,15 +956,11 @@ destroy_per_frame_state(struct vulkano* vk)
 
     for (uint32_t i = 0; i < vk->swapchain.image_count; i++) {
         vkDestroyCommandPool(vk->device, vk->frame_state[i].command_pool, NULL);
-        vkDestroySemaphore(
-            vk->device, vk->frame_state[i].image_ready_for_use, NULL
-        );
+        vkDestroySemaphore(vk->device, vk->frame_state[i].image_ready_for_use, NULL);
         vkDestroySemaphore(
             vk->device, vk->frame_state[i].rendering_commands_complete, NULL
         );
-        vkDestroyFence(
-            vk->device, vk->frame_state[i].presentation_complete, NULL
-        );
+        vkDestroyFence(vk->device, vk->frame_state[i].presentation_complete, NULL);
     }
     free(vk->frame_state);
     vk->frame_state = NULL;
@@ -1024,14 +971,10 @@ create_per_frame_state(struct vulkano* vk, VulkanoError* error)
 {
     if (*error) return;
 
-    assert(
-        vk->swapchain.image_count &&
-        "swapchain needs to be setup before this call"
-    );
+    assert(vk->swapchain.image_count && "swapchain needs to be setup before this call");
     destroy_per_frame_state(vk);
 
-    vk->frame_state =
-        calloc(vk->swapchain.image_count, sizeof *vk->frame_state);
+    vk->frame_state = calloc(vk->swapchain.image_count, sizeof *vk->frame_state);
     if (!vk->frame_state) {
         *error = VULKANO_ERROR_CODE_OUT_OF_MEMORY;
         VULKANO_ERROR("out of memory\n");
@@ -1044,9 +987,7 @@ create_per_frame_state(struct vulkano* vk, VulkanoError* error)
         vk->frame_state[i].rendering_commands_complete =
             vulkano_create_semaphore(vk, (VkSemaphoreCreateInfo){0}, error);
         vk->frame_state[i].presentation_complete = vulkano_create_fence(
-            vk,
-            (VkFenceCreateInfo){.flags = VK_FENCE_CREATE_SIGNALED_BIT},
-            error
+            vk, (VkFenceCreateInfo){.flags = VK_FENCE_CREATE_SIGNALED_BIT}, error
         );
         vk->frame_state[i].command_pool = vulkano_create_command_pool(
             vk,
@@ -1057,8 +998,8 @@ create_per_frame_state(struct vulkano* vk, VulkanoError* error)
         vulkano_allocate_command_buffers(
             vk,
             (VkCommandBufferAllocateInfo){
-                .commandPool        = vk->frame_state[i].command_pool,
-                .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                .commandPool = vk->frame_state[i].command_pool,
+                .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
                 .commandBufferCount = 1,
             },
             &vk->frame_state[i].render_command,
@@ -1071,8 +1012,10 @@ create_per_frame_state(struct vulkano* vk, VulkanoError* error)
     }
 }
 
+// destroy all of the swapchain state except for the handle (so the handle can be passed
+// in when recreating the swapchain on resize events
 static void
-destroy_swapchain(struct vulkano* vk)
+partial_destroy_swapchain(struct vulkano* vk)
 {
     if (!vk->device) return;
     vkDeviceWaitIdle(vk->device);
@@ -1080,24 +1023,26 @@ destroy_swapchain(struct vulkano* vk)
         if (vk->swapchain.image_views)
             vkDestroyImageView(vk->device, vk->swapchain.image_views[i], NULL);
         if (vk->swapchain.depth_image_views)
-            vkDestroyImageView(
-                vk->device, vk->swapchain.depth_image_views[i], NULL
-            );
+            vkDestroyImageView(vk->device, vk->swapchain.depth_image_views[i], NULL);
         if (vk->swapchain.depth_images)
             vulkano_image_destroy(vk, &vk->swapchain.depth_images[i]);
         if (vk->swapchain.framebuffers)
-            vkDestroyFramebuffer(
-                vk->device, vk->swapchain.framebuffers[i], NULL
-            );
+            vkDestroyFramebuffer(vk->device, vk->swapchain.framebuffers[i], NULL);
     }
     free(vk->swapchain.image_views);
     free(vk->swapchain.depth_image_views);
     free(vk->swapchain.depth_images);
     free(vk->swapchain.framebuffers);
-    vk->swapchain.image_views       = NULL;
+    vk->swapchain.image_views = NULL;
     vk->swapchain.depth_image_views = NULL;
-    vk->swapchain.depth_images      = NULL;
-    vk->swapchain.framebuffers      = NULL;
+    vk->swapchain.depth_images = NULL;
+    vk->swapchain.framebuffers = NULL;
+}
+
+static void
+destroy_swapchain(struct vulkano* vk)
+{
+    partial_destroy_swapchain(vk);
     vkDestroySwapchainKHR(vk->device, vk->swapchain.handle, NULL);
     vk->swapchain.handle = VK_NULL_HANDLE;
 }
@@ -1121,7 +1066,7 @@ vulkano_create_command_pool(
 )
 {
     if (*error) return VK_NULL_HANDLE;
-    info.sType         = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     VkCommandPool pool = VK_NULL_HANDLE;
     VULKANO_CHECK(vkCreateCommandPool(vk->device, &info, NULL, &pool), error);
     return pool;
@@ -1140,16 +1085,12 @@ vulkano_create_image_view(
     DEFAULT0(info.subresourceRange.levelCount, 1);
     DEFAULT0(info.subresourceRange.layerCount, 1);
     VkImageView image_view = VK_NULL_HANDLE;
-    VULKANO_CHECK(
-        vkCreateImageView(vk->device, &info, NULL, &image_view), error
-    );
+    VULKANO_CHECK(vkCreateImageView(vk->device, &info, NULL, &image_view), error);
     return image_view;
 }
 
 VkSampler
-vulkano_create_sampler(
-    struct vulkano* vk, VkSamplerCreateInfo info, VulkanoError* error
-)
+vulkano_create_sampler(struct vulkano* vk, VkSamplerCreateInfo info, VulkanoError* error)
 {
     if (*error) return VK_NULL_HANDLE;
     DEFAULT0(info.sType, VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO);
@@ -1166,16 +1107,12 @@ vulkano_create_semaphore(
     if (*error) return VK_NULL_HANDLE;
     DEFAULT0(info.sType, VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO);
     VkSemaphore semaphore = VK_NULL_HANDLE;
-    VULKANO_CHECK(
-        vkCreateSemaphore(vk->device, &info, NULL, &semaphore), error
-    );
+    VULKANO_CHECK(vkCreateSemaphore(vk->device, &info, NULL, &semaphore), error);
     return semaphore;
 }
 
 VkFence
-vulkano_create_fence(
-    struct vulkano* vk, VkFenceCreateInfo info, VulkanoError* error
-)
+vulkano_create_fence(struct vulkano* vk, VkFenceCreateInfo info, VulkanoError* error)
 {
     if (*error) return VK_NULL_HANDLE;
     DEFAULT0(info.sType, VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
@@ -1195,9 +1132,7 @@ vulkano_allocate_command_buffers(
     if (*error) return;
     DEFAULT0(info.sType, VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
     DEFAULT0(info.commandBufferCount, 1);
-    VULKANO_CHECK(
-        vkAllocateCommandBuffers(vk->device, &info, command_buffers), error
-    );
+    VULKANO_CHECK(vkAllocateCommandBuffers(vk->device, &info, command_buffers), error);
 }
 
 void
@@ -1223,33 +1158,26 @@ vulkano_create_render_pass(
     DEFAULT0(info.sType, VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
 
     // if attachment format is undefined use swapchain format instead
-    for (uint32_t attachment = 0; attachment < info.attachmentCount;
-         attachment++) {
+    for (uint32_t attachment = 0; attachment < info.attachmentCount; attachment++) {
         VkAttachmentDescription* desc =
             (VkAttachmentDescription*)info.pAttachments + attachment;
         DEFAULT0(desc->format, vk->gpu.configured_surface_format.format);
     }
 
     VkRenderPass render_pass = VK_NULL_HANDLE;
-    VULKANO_CHECK(
-        vkCreateRenderPass(vk->device, &info, NULL, &render_pass), error
-    );
+    VULKANO_CHECK(vkCreateRenderPass(vk->device, &info, NULL, &render_pass), error);
     return render_pass;
 }
 
 VkDescriptorSetLayout
 vulkano_create_descriptor_set_layout(
-    struct vulkano*                 vk,
-    VkDescriptorSetLayoutCreateInfo info,
-    VulkanoError*                   error
+    struct vulkano* vk, VkDescriptorSetLayoutCreateInfo info, VulkanoError* error
 )
 {
     if (*error) return VK_NULL_HANDLE;
     DEFAULT0(info.sType, VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO);
     VkDescriptorSetLayout layout = VK_NULL_HANDLE;
-    VULKANO_CHECK(
-        vkCreateDescriptorSetLayout(vk->device, &info, NULL, &layout), error
-    );
+    VULKANO_CHECK(vkCreateDescriptorSetLayout(vk->device, &info, NULL, &layout), error);
     return layout;
 }
 
@@ -1261,9 +1189,7 @@ vulkano_create_pipeline_layout(
     if (*error) return VK_NULL_HANDLE;
     DEFAULT0(info.sType, VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
     VkPipelineLayout layout = VK_NULL_HANDLE;
-    VULKANO_CHECK(
-        vkCreatePipelineLayout(vk->device, &info, NULL, &layout), error
-    );
+    VULKANO_CHECK(vkCreatePipelineLayout(vk->device, &info, NULL, &layout), error);
     return layout;
 }
 
@@ -1274,14 +1200,12 @@ vulkano_create_shader_module(
 {
     if (*error) return VK_NULL_HANDLE;
     VkShaderModuleCreateInfo info = {
-        .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .codeSize = data.size,
-        .pCode    = (uint32_t*)data.data,
+        .pCode = (uint32_t*)data.data,
     };
     VkShaderModule module = VK_NULL_HANDLE;
-    VULKANO_CHECK(
-        vkCreateShaderModule(vk->device, &info, NULL, &module), error
-    );
+    VULKANO_CHECK(vkCreateShaderModule(vk->device, &info, NULL, &module), error);
     return module;
 }
 
@@ -1293,8 +1217,7 @@ vulkano_create_graphics_pipeline(
     if (*error) return VK_NULL_HANDLE;
 
     for (size_t i = 0; i < info.stage_count; i++) {
-        info.stages[i].sType =
-            VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        info.stages[i].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         DEFAULT0(info.stages[i].pName, "main");
     }
     info.vertex_input_state.sType =
@@ -1303,8 +1226,7 @@ vulkano_create_graphics_pipeline(
         VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     info.tessellation_state.sType =
         VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
-    info.viewport_state.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    info.viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     info.rasterization_state.sType =
         VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     info.multisample_state.sType =
@@ -1313,37 +1235,32 @@ vulkano_create_graphics_pipeline(
         VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     info.color_blend_state.sType =
         VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    info.dynamic_state.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    info.dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 
-    DEFAULT0(
-        info.multisample_state.rasterizationSamples, VK_SAMPLE_COUNT_1_BIT
-    );
+    DEFAULT0(info.multisample_state.rasterizationSamples, VK_SAMPLE_COUNT_1_BIT);
     VkGraphicsPipelineCreateInfo processed_info = {
-        .sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        .flags               = info.flags,
-        .stageCount          = info.stage_count,
-        .pStages             = info.stages,
-        .pVertexInputState   = &info.vertex_input_state,
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .flags = info.flags,
+        .stageCount = info.stage_count,
+        .pStages = info.stages,
+        .pVertexInputState = &info.vertex_input_state,
         .pInputAssemblyState = &info.input_assembly_state,
-        .pTessellationState  = &info.tessellation_state,
-        .pViewportState      = &info.viewport_state,
+        .pTessellationState = &info.tessellation_state,
+        .pViewportState = &info.viewport_state,
         .pRasterizationState = &info.rasterization_state,
-        .pMultisampleState   = &info.multisample_state,
-        .pDepthStencilState  = &info.depth_stencil_state,
-        .pColorBlendState    = &info.color_blend_state,
-        .pDynamicState       = &info.dynamic_state,
-        .layout              = info.layout,
-        .renderPass          = info.render_pass,
-        .subpass             = info.subpass,
-        .basePipelineHandle  = info.base_pipeline_handle,
-        .basePipelineIndex   = info.base_pipeline_index,
+        .pMultisampleState = &info.multisample_state,
+        .pDepthStencilState = &info.depth_stencil_state,
+        .pColorBlendState = &info.color_blend_state,
+        .pDynamicState = &info.dynamic_state,
+        .layout = info.layout,
+        .renderPass = info.render_pass,
+        .subpass = info.subpass,
+        .basePipelineHandle = info.base_pipeline_handle,
+        .basePipelineIndex = info.base_pipeline_index,
     };
     VkPipeline pipeline = VK_NULL_HANDLE;
     VULKANO_CHECK(
-        vkCreateGraphicsPipelines(
-            vk->device, NULL, 1, &processed_info, NULL, &pipeline
-        ),
+        vkCreateGraphicsPipelines(vk->device, NULL, 1, &processed_info, NULL, &pipeline),
         error
     );
     return pipeline;
@@ -1355,12 +1272,10 @@ vulkano_create_descriptor_pool(
 )
 {
     if (*error) return VK_NULL_HANDLE;
-    info.sType            = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     VkDescriptorPool pool = VK_NULL_HANDLE;
     ;
-    VULKANO_CHECK(
-        vkCreateDescriptorPool(vk->device, &info, NULL, &pool), error
-    );
+    VULKANO_CHECK(vkCreateDescriptorPool(vk->device, &info, NULL, &pool), error);
     return pool;
 }
 
@@ -1368,7 +1283,7 @@ static void
 create_swapchain(struct vulkano* vk, VulkanoError* error)
 {
     if (*error) return;
-    destroy_swapchain(vk);
+    partial_destroy_swapchain(vk);
 
     VkSurfaceCapabilitiesKHR capabilities = {0};
     VULKANO_CHECK(
@@ -1383,14 +1298,10 @@ create_swapchain(struct vulkano* vk, VulkanoError* error)
         uint32_t width, height;
         vk->query_size(&width, &height);
         extent.width = VULKANO_CLAMP(
-            capabilities.minImageExtent.width,
-            capabilities.maxImageExtent.width,
-            width
+            capabilities.minImageExtent.width, capabilities.maxImageExtent.width, width
         );
         extent.height = VULKANO_CLAMP(
-            capabilities.minImageExtent.height,
-            capabilities.maxImageExtent.height,
-            height
+            capabilities.minImageExtent.height, capabilities.maxImageExtent.height, height
         );
     }
 
@@ -1407,26 +1318,27 @@ create_swapchain(struct vulkano* vk, VulkanoError* error)
     );
 
     VkSwapchainCreateInfoKHR swapchain_info = {
-        .sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        .surface          = vk->surface,
-        .minImageCount    = vk->swapchain.image_count,
-        .imageFormat      = vk->gpu.configured_surface_format.format,
-        .imageColorSpace  = vk->gpu.configured_surface_format.colorSpace,
-        .imageExtent      = vk->swapchain.extent,
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .surface = vk->surface,
+        .minImageCount = vk->swapchain.image_count,
+        .imageFormat = vk->gpu.configured_surface_format.format,
+        .imageColorSpace = vk->gpu.configured_surface_format.colorSpace,
+        .imageExtent = vk->swapchain.extent,
         .imageArrayLayers = 1,
-        .imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
-        .preTransform     = capabilities.currentTransform,
-        .compositeAlpha   = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-        .presentMode      = vk->gpu.configured_present_mode,
-        .clipped          = VK_TRUE,
+        .preTransform = capabilities.currentTransform,
+        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .presentMode = vk->gpu.configured_present_mode,
+        .clipped = VK_TRUE,
+        .oldSwapchain = vk->swapchain.handle,
     };
+    VkSwapchainKHR new_swapchain = VK_NULL_HANDLE;
     VULKANO_CHECK(
-        vkCreateSwapchainKHR(
-            vk->device, &swapchain_info, NULL, &vk->swapchain.handle
-        ),
-        error
+        vkCreateSwapchainKHR(vk->device, &swapchain_info, NULL, &new_swapchain), error
     );
+    vkDestroySwapchainKHR(vk->device, vk->swapchain.handle, NULL);
+    vk->swapchain.handle = new_swapchain;
     if (*error) return;
 
     VkImage* images;
@@ -1443,9 +1355,8 @@ create_swapchain(struct vulkano* vk, VulkanoError* error)
         calloc(vk->swapchain.image_count, sizeof *vk->swapchain.image_views);
     vk->swapchain.depth_images =
         calloc(vk->swapchain.image_count, sizeof *vk->swapchain.depth_images);
-    vk->swapchain.depth_image_views = calloc(
-        vk->swapchain.image_count, sizeof *vk->swapchain.depth_image_views
-    );
+    vk->swapchain.depth_image_views =
+        calloc(vk->swapchain.image_count, sizeof *vk->swapchain.depth_image_views);
     vk->swapchain.framebuffers =
         calloc(vk->swapchain.image_count, sizeof *vk->swapchain.framebuffers);
 
@@ -1460,15 +1371,15 @@ create_swapchain(struct vulkano* vk, VulkanoError* error)
         vk->swapchain.image_views[i] = vulkano_create_image_view(
             vk,
             (VkImageViewCreateInfo){
-                .sType    = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                .image    = images[i],
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = images[i],
                 .viewType = VK_IMAGE_VIEW_TYPE_2D,
-                .format   = vk->gpu.configured_surface_format.format,
-                .subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
-                .subresourceRange.baseMipLevel   = 0,
-                .subresourceRange.levelCount     = 1,
+                .format = vk->gpu.configured_surface_format.format,
+                .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .subresourceRange.baseMipLevel = 0,
+                .subresourceRange.levelCount = 1,
                 .subresourceRange.baseArrayLayer = 0,
-                .subresourceRange.layerCount     = 1,
+                .subresourceRange.layerCount = 1,
             },
             error
         );
@@ -1476,14 +1387,10 @@ create_swapchain(struct vulkano* vk, VulkanoError* error)
             vk,
             (VkImageCreateInfo){
                 .format = VULKANO_DEPTH_FORMAT,
-                .extent =
-                    {vk->swapchain.extent.width,
-                     vk->swapchain.extent.height,
-                     1},
+                .extent = {vk->swapchain.extent.width, vk->swapchain.extent.height, 1},
                 .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                 .queueFamilyIndexCount = 1,
-                .pQueueFamilyIndices =
-                    (const uint32_t[]){vk->gpu.graphics_queue_family},
+                .pQueueFamilyIndices = (const uint32_t[]){vk->gpu.graphics_queue_family},
             },
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             error
@@ -1491,7 +1398,7 @@ create_swapchain(struct vulkano* vk, VulkanoError* error)
         vk->swapchain.depth_image_views[i] = vulkano_create_image_view(
             vk,
             (VkImageViewCreateInfo){
-                .image  = vk->swapchain.depth_images[i].handle,
+                .image = vk->swapchain.depth_images[i].handle,
                 .format = VULKANO_DEPTH_FORMAT,
                 .subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
             },
@@ -1505,20 +1412,17 @@ create_swapchain(struct vulkano* vk, VulkanoError* error)
         VkImageView attachments[] = {
             vk->swapchain.image_views[i], vk->swapchain.depth_image_views[i]};
         VkFramebufferCreateInfo framebuffer_info = {
-            .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .renderPass      = vk->swapchain.render_pass,
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = vk->swapchain.render_pass,
             .attachmentCount = sizeof attachments / sizeof *attachments,
-            .pAttachments    = attachments,
-            .width           = vk->swapchain.extent.width,
-            .height          = vk->swapchain.extent.height,
-            .layers          = 1,
+            .pAttachments = attachments,
+            .width = vk->swapchain.extent.width,
+            .height = vk->swapchain.extent.height,
+            .layers = 1,
         };
         VULKANO_CHECK(
             vkCreateFramebuffer(
-                vk->device,
-                &framebuffer_info,
-                NULL,
-                &vk->swapchain.framebuffers[i]
+                vk->device, &framebuffer_info, NULL, &vk->swapchain.framebuffers[i]
             ),
             error
         );
@@ -1568,22 +1472,18 @@ vulkano_configure_swapchain(
 }
 
 VkCommandBuffer
-vulkano_acquire_single_use_command_buffer(
-    struct vulkano* vk, VulkanoError* error
-)
+vulkano_acquire_single_use_command_buffer(struct vulkano* vk, VulkanoError* error)
 {
     if (*error) return VK_NULL_HANDLE;
 
-    VkCommandBuffer             cmd             = VK_NULL_HANDLE;
+    VkCommandBuffer             cmd = VK_NULL_HANDLE;
     VkCommandBufferAllocateInfo allocation_info = {
-        .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool        = vk->gpu.single_use_command_pool,
-        .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = vk->gpu.single_use_command_pool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
         .commandBufferCount = 1,
     };
-    VULKANO_CHECK(
-        vkAllocateCommandBuffers(vk->device, &allocation_info, &cmd), error
-    );
+    VULKANO_CHECK(vkAllocateCommandBuffers(vk->device, &allocation_info, &cmd), error);
     if (*error) return cmd;
 
     VkCommandBufferBeginInfo begin_info = {
@@ -1592,9 +1492,7 @@ vulkano_acquire_single_use_command_buffer(
     };
     VULKANO_CHECK(vkBeginCommandBuffer(cmd, &begin_info), error);
     if (*error) {
-        vkFreeCommandBuffers(
-            vk->device, vk->gpu.single_use_command_pool, 1, &cmd
-        );
+        vkFreeCommandBuffers(vk->device, vk->gpu.single_use_command_pool, 1, &cmd);
         return VK_NULL_HANDLE;
     }
     return cmd;
@@ -1613,16 +1511,14 @@ vulkano_submit_single_use_command_buffer(
     VkFence fence = VK_NULL_HANDLE;
 
     VkSubmitInfo submit = {
-        .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .commandBufferCount = 1,
-        .pCommandBuffers    = &cmd,
+        .pCommandBuffers = &cmd,
     };
 
     VULKANO_CHECK(vkCreateFence(vk->device, &fence_info, NULL, &fence), error);
     VULKANO_CHECK(vkEndCommandBuffer(cmd), error);
-    VULKANO_CHECK(
-        vkQueueSubmit(vk->gpu.graphics_queue, 1, &submit, fence), error
-    );
+    VULKANO_CHECK(vkQueueSubmit(vk->gpu.graphics_queue, 1, &submit, fence), error);
     VULKANO_CHECK(
         vkWaitForFences(vk->device, 1, &fence, VK_TRUE, VULKANO_TIMEOUT), error
     );
@@ -1650,14 +1546,10 @@ vulkano_resized(struct vulkano* vk, VulkanoError* error)
         uint32_t width, height;
         vk->query_size(&width, &height);
         extent.width = VULKANO_CLAMP(
-            capabilities.minImageExtent.width,
-            capabilities.maxImageExtent.width,
-            width
+            capabilities.minImageExtent.width, capabilities.maxImageExtent.width, width
         );
         extent.height = VULKANO_CLAMP(
-            capabilities.minImageExtent.height,
-            capabilities.maxImageExtent.height,
-            height
+            capabilities.minImageExtent.height, capabilities.maxImageExtent.height, height
         );
     }
     return (
@@ -1678,7 +1570,6 @@ vulkano_frame_acquire(
     if (*error) return;
 
     if (vulkano_resized(vk, error)) {
-        destroy_swapchain(vk);
         create_swapchain(vk, error);
         if (*error) return;
     }
@@ -1688,16 +1579,12 @@ vulkano_frame_acquire(
     }
 
     frame->number = vk->frame_counter++;
-    frame->index  = frame->number % vk->swapchain.image_count;
-    frame->state  = vk->frame_state[frame->index];
+    frame->index = frame->number % vk->swapchain.image_count;
+    frame->state = vk->frame_state[frame->index];
 
     VULKANO_CHECK(
         vkWaitForFences(
-            vk->device,
-            1,
-            &frame->state.presentation_complete,
-            VK_TRUE,
-            VULKANO_TIMEOUT
+            vk->device, 1, &frame->state.presentation_complete, VK_TRUE, VULKANO_TIMEOUT
         ),
         error
     );
@@ -1717,7 +1604,6 @@ acquire_image : {
         &frame->image_index
     );
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        destroy_swapchain(vk);
         create_swapchain(vk, error);
         if (*error) return;
         goto acquire_image;
@@ -1738,8 +1624,7 @@ acquire_image : {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     };
     VULKANO_CHECK(
-        vkBeginCommandBuffer(frame->state.render_command, &command_begin_info),
-        error
+        vkBeginCommandBuffer(frame->state.render_command, &command_begin_info), error
     );
     if (*error) return;
 }
@@ -1763,17 +1648,15 @@ acquire_image : {
         },
     };
     VkRenderPassBeginInfo render_begin_info = {
-        .sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .renderPass        = vk->swapchain.render_pass,
-        .framebuffer       = frame->framebuffer,
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+        .renderPass = vk->swapchain.render_pass,
+        .framebuffer = frame->framebuffer,
         .renderArea.extent = vk->swapchain.extent,
-        .clearValueCount   = 2,
-        .pClearValues      = clear_value,
+        .clearValueCount = 2,
+        .pClearValues = clear_value,
     };
     vkCmdBeginRenderPass(
-        frame->state.render_command,
-        &render_begin_info,
-        VK_SUBPASS_CONTENTS_INLINE
+        frame->state.render_command, &render_begin_info, VK_SUBPASS_CONTENTS_INLINE
     );
 }
 
@@ -1796,29 +1679,26 @@ vulkano_frame_submit(
     VkPipelineStageFlags  wait_mask[32];
     VkSemaphore           wait_semaphores[32];
     static const uint32_t library_wait_count = 1;
-    uint32_t              total_wait_semaphores =
-        library_wait_count + info.waitSemaphoreCount;
+    uint32_t total_wait_semaphores = library_wait_count + info.waitSemaphoreCount;
     assert(total_wait_semaphores <= 32);
 
-    wait_mask[0]       = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    wait_mask[0] = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     wait_semaphores[0] = frame->state.image_ready_for_use;
 
     for (uint32_t i = 0; i < total_wait_semaphores - library_wait_count; i++) {
-        wait_mask[library_wait_count + i]       = info.pWaitDstStageMask[i];
+        wait_mask[library_wait_count + i] = info.pWaitDstStageMask[i];
         wait_semaphores[library_wait_count + i] = info.pWaitSemaphores[i];
     }
 
     // add library signal semaphores to user provided ones
     VkSemaphore           signal_semaphores[32];
     static const uint32_t library_signal_count = 1;
-    uint32_t              total_signal_semaphores =
-        library_signal_count + info.signalSemaphoreCount;
+    uint32_t total_signal_semaphores = library_signal_count + info.signalSemaphoreCount;
     assert(total_signal_semaphores <= 32);
 
     signal_semaphores[0] = frame->state.rendering_commands_complete;
 
-    for (uint32_t i = 0; i < total_signal_semaphores - library_signal_count;
-         i++) {
+    for (uint32_t i = 0; i < total_signal_semaphores - library_signal_count; i++) {
         signal_semaphores[library_signal_count + i] = info.pSignalSemaphores[i];
     }
 
@@ -1828,33 +1708,30 @@ vulkano_frame_submit(
     );
 
     VkSubmitInfo submit_info = {
-        .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .waitSemaphoreCount   = total_wait_semaphores,
-        .pWaitSemaphores      = wait_semaphores,
-        .pWaitDstStageMask    = wait_mask,
-        .commandBufferCount   = 1,
-        .pCommandBuffers      = &frame->state.render_command,
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount = total_wait_semaphores,
+        .pWaitSemaphores = wait_semaphores,
+        .pWaitDstStageMask = wait_mask,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &frame->state.render_command,
         .signalSemaphoreCount = total_signal_semaphores,
-        .pSignalSemaphores    = signal_semaphores,
+        .pSignalSemaphores = signal_semaphores,
     };
     VULKANO_CHECK(
         vkQueueSubmit(
-            vk->gpu.graphics_queue,
-            1,
-            &submit_info,
-            frame->state.presentation_complete
+            vk->gpu.graphics_queue, 1, &submit_info, frame->state.presentation_complete
         ),
         error
     );
     if (*error) return;
 
     VkPresentInfoKHR present_info = {
-        .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores    = &frame->state.rendering_commands_complete,
-        .swapchainCount     = 1,
-        .pSwapchains        = &vk->swapchain.handle,
-        .pImageIndices      = &frame->image_index,
+        .pWaitSemaphores = &frame->state.rendering_commands_complete,
+        .swapchainCount = 1,
+        .pSwapchains = &vk->swapchain.handle,
+        .pImageIndices = &frame->image_index,
     };
     VkResult result = vkQueuePresentKHR(vk->gpu.graphics_queue, &present_info);
     if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) {
@@ -1911,20 +1788,16 @@ vulkano_buffer_create(
     struct vulkano_buffer buffer = {0};
     if (*error) return buffer;
 
-    buffer.usage    = info.usage;
+    buffer.usage = info.usage;
     buffer.capacity = info.size;
     DEFAULT0(info.sharingMode, VK_SHARING_MODE_EXCLUSIVE);
     info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 
-    VULKANO_CHECK(
-        vkCreateBuffer(vk->device, &info, NULL, &buffer.handle), error
-    );
+    VULKANO_CHECK(vkCreateBuffer(vk->device, &info, NULL, &buffer.handle), error);
     if (*error) return buffer;
 
     VkMemoryRequirements memory_requirements = {0};
-    vkGetBufferMemoryRequirements(
-        vk->device, buffer.handle, &memory_requirements
-    );
+    vkGetBufferMemoryRequirements(vk->device, buffer.handle, &memory_requirements);
     uint32_t memory_type_index = select_memory_type(
         vk->gpu, memory_requirements.memoryTypeBits, memory_properties, error
     );
@@ -1936,21 +1809,18 @@ vulkano_buffer_create(
     buffer.memory_flags =
         vk->gpu.memory_properties.memoryTypes[memory_type_index].propertyFlags;
     VkMemoryAllocateInfo allocate_info = {
-        .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize  = memory_requirements.size,
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = memory_requirements.size,
         .memoryTypeIndex = memory_type_index,
     };
     VULKANO_CHECK(
-        vkAllocateMemory(vk->device, &allocate_info, NULL, &buffer.memory),
-        error
+        vkAllocateMemory(vk->device, &allocate_info, NULL, &buffer.memory), error
     );
     if (*error) {
         vkDestroyBuffer(vk->device, buffer.handle, NULL);
         return buffer;
     }
-    VULKANO_CHECK(
-        vkBindBufferMemory(vk->device, buffer.handle, buffer.memory, 0), error
-    );
+    VULKANO_CHECK(vkBindBufferMemory(vk->device, buffer.handle, buffer.memory, 0), error);
     if (*error) {
         vkDestroyBuffer(vk->device, buffer.handle, NULL);
         vkFreeMemory(vk->device, buffer.memory, NULL);
@@ -1981,8 +1851,7 @@ vulkano_buffer_copy_to_host_coherent(
 
     void* memory = NULL;
     VULKANO_CHECK(
-        vkMapMemory(vk->device, buffer->memory, 0, VK_WHOLE_SIZE, 0, &memory),
-        error
+        vkMapMemory(vk->device, buffer->memory, 0, VK_WHOLE_SIZE, 0, &memory), error
     );
     if (*error) return;
     memcpy(memory, data.data, data.size);
@@ -2001,17 +1870,16 @@ vulkano_buffer_copy_to_host_visible(
 
     void* memory = NULL;
     VULKANO_CHECK(
-        vkMapMemory(vk->device, buffer->memory, 0, VK_WHOLE_SIZE, 0, &memory),
-        error
+        vkMapMemory(vk->device, buffer->memory, 0, VK_WHOLE_SIZE, 0, &memory), error
     );
     if (*error) return;
     memcpy(memory, data.data, data.size);
 
     VkMappedMemoryRange range = {
-        .sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+        .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
         .memory = buffer->memory,
         .offset = 0,
-        .size   = VK_WHOLE_SIZE,
+        .size = VK_WHOLE_SIZE,
     };
     VULKANO_CHECK(vkFlushMappedMemoryRanges(vk->device, 1, &range), error);
     vkUnmapMemory(vk->device, buffer->memory);
@@ -2042,7 +1910,7 @@ vulkano_buffer_copy_to_device_local(
     struct vulkano_buffer transfer_buffer = vulkano_buffer_create(
         vk,
         (VkBufferCreateInfo){
-            .size  = data.size,
+            .size = data.size,
             .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         },
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
@@ -2113,26 +1981,22 @@ vulkano_image_create(
 
     VkMemoryRequirements requirements;
     vkGetImageMemoryRequirements(vk->device, image.handle, &requirements);
-    uint32_t memory_type = select_memory_type(
-        vk->gpu, requirements.memoryTypeBits, memory_flags, error
-    );
+    uint32_t memory_type =
+        select_memory_type(vk->gpu, requirements.memoryTypeBits, memory_flags, error);
     if (*error) {
         vulkano_image_destroy(vk, &image);
         return image;
     }
 
     VkMemoryAllocateInfo allocation_info = {
-        .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize  = requirements.size,
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = requirements.size,
         .memoryTypeIndex = memory_type,
     };
     VULKANO_CHECK(
-        vkAllocateMemory(vk->device, &allocation_info, NULL, &image.memory),
-        error
+        vkAllocateMemory(vk->device, &allocation_info, NULL, &image.memory), error
     );
-    VULKANO_CHECK(
-        vkBindImageMemory(vk->device, image.handle, image.memory, 0), error
-    );
+    VULKANO_CHECK(vkBindImageMemory(vk->device, image.handle, image.memory, 0), error);
     if (*error) {
         vulkano_image_destroy(vk, &image);
         return image;
@@ -2161,12 +2025,12 @@ vulkano_image_change_layout(
     if (*error) return;
 
     VkImageMemoryBarrier barrier = {
-        .sType                       = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .oldLayout                   = image->layout,
-        .newLayout                   = layout,
-        .srcQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED,
-        .image                       = image->handle,
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .oldLayout = image->layout,
+        .newLayout = layout,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = image->handle,
         .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
         .subresourceRange.levelCount = 1,
         .subresourceRange.layerCount = 1,
@@ -2179,14 +2043,14 @@ vulkano_image_change_layout(
         layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        source_stage_flags    = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        dest_stage_flags      = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        source_stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        dest_stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
     else if (image->layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        source_stage_flags    = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        dest_stage_flags      = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        source_stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        dest_stage_flags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     }
     else {
         *error = VULKANO_ERROR_CODE_FATAL_ERROR;
@@ -2200,16 +2064,7 @@ vulkano_image_change_layout(
     if (*error) return;
 
     vkCmdPipelineBarrier(
-        cmd,
-        source_stage_flags,
-        dest_stage_flags,
-        0,
-        0,
-        NULL,
-        0,
-        NULL,
-        1,
-        &barrier
+        cmd, source_stage_flags, dest_stage_flags, 0, 0, NULL, 0, NULL, 1, &barrier
     );
     vulkano_submit_single_use_command_buffer(vk, cmd, error);
     if (*error) return;
@@ -2228,13 +2083,13 @@ vulkano_image_copy_to(
     VkBufferImageCopy copy_info = {
         .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
         .imageSubresource.layerCount = 1,
-        .imageExtent                 = {data.width, data.height, 1},
+        .imageExtent = {data.width, data.height, 1},
     };
 
     struct vulkano_buffer transfer_buffer = vulkano_buffer_create(
         vk,
         (VkBufferCreateInfo){
-            .size  = data.size,
+            .size = data.size,
             .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         },
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
@@ -2273,12 +2128,11 @@ vulkano_sampler_create(
             .format = data.format,
             .extent =
                 {
-                    .width  = data.width,
+                    .width = data.width,
                     .height = data.height,
-                    .depth  = 1,
+                    .depth = 1,
                 },
-            .usage =
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         },
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         error
@@ -2293,7 +2147,7 @@ vulkano_sampler_create(
     sampler.view = vulkano_create_image_view(
         vk,
         (VkImageViewCreateInfo){
-            .image  = sampler.image.handle,
+            .image = sampler.image.handle,
             .format = data.format,
         },
         error
@@ -2302,7 +2156,7 @@ vulkano_sampler_create(
         vk,
         (VkSamplerCreateInfo){
             .anisotropyEnable = VK_TRUE,
-            .maxAnisotropy    = vk->gpu.properties.limits.maxSamplerAnisotropy,
+            .maxAnisotropy = vk->gpu.properties.limits.maxSamplerAnisotropy,
         },
         error
     );
@@ -2328,9 +2182,9 @@ score_gpu(VkPhysicalDevice gpu)
     // score gpus in tiers where Discrete > Integrated > Virtual reguardless of
     // other properties
     {
-        static const uint64_t DISCRETE   = (uint64_t)1 << 63;
+        static const uint64_t DISCRETE = (uint64_t)1 << 63;
         static const uint64_t INTEGRATED = (uint64_t)1 << 62;
-        static const uint64_t VIRTUAL    = (uint64_t)1 << 61;
+        static const uint64_t VIRTUAL = (uint64_t)1 << 61;
 
         VkPhysicalDeviceProperties properties;
         vkGetPhysicalDeviceProperties(gpu, &properties);
@@ -2376,11 +2230,16 @@ static uint32_t
 score_present_mode(VkPresentModeKHR mode)
 {
     switch (mode) {
-        case VK_PRESENT_MODE_IMMEDIATE_KHR: return 1;
-        case VK_PRESENT_MODE_MAILBOX_KHR: return 4;
-        case VK_PRESENT_MODE_FIFO_KHR: return 3;
-        case VK_PRESENT_MODE_FIFO_RELAXED_KHR: return 2;
-        default: return 0;
+        case VK_PRESENT_MODE_IMMEDIATE_KHR:
+            return 1;
+        case VK_PRESENT_MODE_MAILBOX_KHR:
+            return 4;
+        case VK_PRESENT_MODE_FIFO_KHR:
+            return 3;
+        case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+            return 2;
+        default:
+            return 0;
     }
 }
 
@@ -2397,22 +2256,19 @@ default_present_modes_compare(VkPresentModeKHR* mode1, VkPresentModeKHR* mode2)
 static uint32_t
 score_surface_format(VkSurfaceFormatKHR format)
 {
-    uint32_t STANDARD_COLOR_SPACE_BIT  = (uint32_t)1 << 30;
+    uint32_t STANDARD_COLOR_SPACE_BIT = (uint32_t)1 << 30;
     uint32_t STANDARD_COLOR_FORMAT_BIT = (uint32_t)1 << 29;
 
     uint32_t score = 0;
     if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
         score &= STANDARD_COLOR_SPACE_BIT;
-    if (format.format == VK_FORMAT_B8G8R8A8_SRGB)
-        score &= STANDARD_COLOR_FORMAT_BIT;
+    if (format.format == VK_FORMAT_B8G8R8A8_SRGB) score &= STANDARD_COLOR_FORMAT_BIT;
 
     return score;
 }
 
 int
-default_surface_format_compare(
-    VkSurfaceFormatKHR* fmt1, VkSurfaceFormatKHR* fmt2
-)
+default_surface_format_compare(VkSurfaceFormatKHR* fmt1, VkSurfaceFormatKHR* fmt2)
 {
     uint32_t score1 = score_surface_format(*fmt1);
     uint32_t score2 = score_surface_format(*fmt2);
@@ -2422,9 +2278,7 @@ default_surface_format_compare(
 }
 
 static int
-compare_layer_properties_name(
-    VkLayerProperties* prop1, VkLayerProperties* prop2
-)
+compare_layer_properties_name(VkLayerProperties* prop1, VkLayerProperties* prop2)
 {
     return strcmp(prop1->layerName, prop2->layerName);
 }
@@ -2439,29 +2293,18 @@ compare_extension_names(
 
 // only for use during initialization
 static struct string_array
-combine_string_arrays_unique(
-    struct string_array array1, struct string_array array2
-)
+combine_string_arrays_unique(struct string_array array1, struct string_array array2)
 {
     uint32_t total_count = array1.count + array2.count;
-    if (total_count == 0)
-        return (struct string_array){.count = 0, .data = NULL};
+    if (total_count == 0) return (struct string_array){.count = 0, .data = NULL};
 
     struct string_array combined = {
-        .data =
-            init_malloc((array1.count + array2.count) * sizeof(const char*)),
+        .data = init_malloc((array1.count + array2.count) * sizeof(const char*)),
     };
     if (array1.data) {
         combined.count = array1.count;
-        memcpy(
-            combined.data, array1.data, sizeof(array1.data[0]) * array1.count
-        );
-        qsort(
-            array1.data,
-            array1.count,
-            sizeof(const char*),
-            (compare_function)strcmp
-        );
+        memcpy(combined.data, array1.data, sizeof(array1.data[0]) * array1.count);
+        qsort(array1.data, array1.count, sizeof(const char*), (compare_function)strcmp);
     }
     if (array2.data)
         for (uint32_t i = 0; i < array2.count; i++) {
@@ -2495,7 +2338,7 @@ static void*
 init_malloc(size_t size)
 {
     if (init_allocations.count == init_allocations.capacity) {
-        init_allocations.capacity    = 1 + (init_allocations.capacity * 2);
+        init_allocations.capacity = 1 + (init_allocations.capacity * 2);
         init_allocations.allocations = realloc(
             init_allocations.allocations,
             (sizeof *init_allocations.allocations) * init_allocations.capacity
@@ -2526,57 +2369,80 @@ const char*
 vkresult_to_string(VkResult result)
 {
     switch (result) {
-        case VK_SUCCESS: return "VK_SUCCESS";
-        case VK_NOT_READY: return "VK_NOT_READY";
-        case VK_TIMEOUT: return "VK_TIMEOUT";
-        case VK_EVENT_SET: return "VK_EVENT_SET";
-        case VK_EVENT_RESET: return "VK_EVENT_RESET";
-        case VK_INCOMPLETE: return "VK_INCOMPLETE";
-        case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
+        case VK_SUCCESS:
+            return "VK_SUCCESS";
+        case VK_NOT_READY:
+            return "VK_NOT_READY";
+        case VK_TIMEOUT:
+            return "VK_TIMEOUT";
+        case VK_EVENT_SET:
+            return "VK_EVENT_SET";
+        case VK_EVENT_RESET:
+            return "VK_EVENT_RESET";
+        case VK_INCOMPLETE:
+            return "VK_INCOMPLETE";
+        case VK_ERROR_OUT_OF_HOST_MEMORY:
+            return "VK_ERROR_OUT_OF_HOST_MEMORY";
         case VK_ERROR_OUT_OF_DEVICE_MEMORY:
             return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
         case VK_ERROR_INITIALIZATION_FAILED:
             return "VK_ERROR_INITIALIZATION_FAILED";
-        case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";
-        case VK_ERROR_MEMORY_MAP_FAILED: return "VK_ERROR_MEMORY_MAP_FAILED";
-        case VK_ERROR_LAYER_NOT_PRESENT: return "VK_ERROR_LAYER_NOT_PRESENT";
+        case VK_ERROR_DEVICE_LOST:
+            return "VK_ERROR_DEVICE_LOST";
+        case VK_ERROR_MEMORY_MAP_FAILED:
+            return "VK_ERROR_MEMORY_MAP_FAILED";
+        case VK_ERROR_LAYER_NOT_PRESENT:
+            return "VK_ERROR_LAYER_NOT_PRESENT";
         case VK_ERROR_EXTENSION_NOT_PRESENT:
             return "VK_ERROR_EXTENSION_NOT_PRESENT";
         case VK_ERROR_FEATURE_NOT_PRESENT:
             return "VK_ERROR_FEATURE_NOT_PRESENT";
         case VK_ERROR_INCOMPATIBLE_DRIVER:
             return "VK_ERROR_INCOMPATIBLE_DRIVER";
-        case VK_ERROR_TOO_MANY_OBJECTS: return "VK_ERROR_TOO_MANY_OBJECTS";
+        case VK_ERROR_TOO_MANY_OBJECTS:
+            return "VK_ERROR_TOO_MANY_OBJECTS";
         case VK_ERROR_FORMAT_NOT_SUPPORTED:
             return "VK_ERROR_FORMAT_NOT_SUPPORTED";
-        case VK_ERROR_FRAGMENTED_POOL: return "VK_ERROR_FRAGMENTED_POOL";
-        case VK_ERROR_UNKNOWN: return "VK_ERROR_UNKNOWN";
-        case VK_ERROR_OUT_OF_POOL_MEMORY: return "VK_ERROR_OUT_OF_POOL_MEMORY";
+        case VK_ERROR_FRAGMENTED_POOL:
+            return "VK_ERROR_FRAGMENTED_POOL";
+        case VK_ERROR_UNKNOWN:
+            return "VK_ERROR_UNKNOWN";
+        case VK_ERROR_OUT_OF_POOL_MEMORY:
+            return "VK_ERROR_OUT_OF_POOL_MEMORY";
         case VK_ERROR_INVALID_EXTERNAL_HANDLE:
             return "VK_ERROR_INVALID_EXTERNAL_HANDLE";
-        case VK_ERROR_FRAGMENTATION: return "VK_ERROR_FRAGMENTATION";
+        case VK_ERROR_FRAGMENTATION:
+            return "VK_ERROR_FRAGMENTATION";
         case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS:
             return "VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS";
         case VK_PIPELINE_COMPILE_REQUIRED:
             return "VK_PIPELINE_COMPILE_REQUIRED";
-        case VK_ERROR_SURFACE_LOST_KHR: return "VK_ERROR_SURFACE_LOST_KHR";
+        case VK_ERROR_SURFACE_LOST_KHR:
+            return "VK_ERROR_SURFACE_LOST_KHR";
         case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR:
             return "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR";
-        case VK_SUBOPTIMAL_KHR: return "VK_SUBOPTIMAL_KHR";
-        case VK_ERROR_OUT_OF_DATE_KHR: return "VK_ERROR_OUT_OF_DATE_KHR";
+        case VK_SUBOPTIMAL_KHR:
+            return "VK_SUBOPTIMAL_KHR";
+        case VK_ERROR_OUT_OF_DATE_KHR:
+            return "VK_ERROR_OUT_OF_DATE_KHR";
         case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR:
             return "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR";
         case VK_ERROR_VALIDATION_FAILED_EXT:
             return "VK_ERROR_VALIDATION_FAILED_EXT";
-        case VK_ERROR_INVALID_SHADER_NV: return "VK_ERROR_INVALID_SHADER_NV";
+        case VK_ERROR_INVALID_SHADER_NV:
+            return "VK_ERROR_INVALID_SHADER_NV";
         case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT:
             return "VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT";
-        case VK_ERROR_NOT_PERMITTED_KHR: return "VK_ERROR_NOT_PERMITTED_KHR";
+        case VK_ERROR_NOT_PERMITTED_KHR:
+            return "VK_ERROR_NOT_PERMITTED_KHR";
         case VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT:
             return "VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT";
-        case VK_THREAD_IDLE_KHR: return "VK_THREAD_IDLE_KHR";
-        case VK_THREAD_DONE_KHR: return "VK_THREAD_DONE_KHR";
-        case VK_OPERATION_DEFERRED_KHR: return "VK_OPERATION_DEFERRED_KHR";
+        case VK_THREAD_IDLE_KHR:
+            return "VK_THREAD_IDLE_KHR";
+        case VK_THREAD_DONE_KHR:
+            return "VK_THREAD_DONE_KHR";
+        case VK_OPERATION_DEFERRED_KHR:
+            return "VK_OPERATION_DEFERRED_KHR";
         case VK_OPERATION_NOT_DEFERRED_KHR:
             return "VK_OPERATION_NOT_DEFERRED_KHR";
         case VK_ERROR_COMPRESSION_EXHAUSTED_EXT:
@@ -2606,7 +2472,8 @@ vkresult_to_string(VkResult result)
         case VK_ERROR_VIDEO_STD_VERSION_NOT_SUPPORTED_KHR:
             return "VK_ERROR_VIDEO_STD_VERSION_NOT_SUPPORTED_KHR";
 #endif
-        case VK_RESULT_MAX_ENUM: return "VK_RESULT_MAX_ENUM";
+        case VK_RESULT_MAX_ENUM:
+            return "VK_RESULT_MAX_ENUM";
     }
 
     return "Unrecognized VkResult";
@@ -2618,8 +2485,10 @@ present_mode_to_string(VkPresentModeKHR mode)
     switch (mode) {
         case VK_PRESENT_MODE_IMMEDIATE_KHR:
             return "VK_PRESENT_MODE_IMMEDIATE_KHR";
-        case VK_PRESENT_MODE_MAILBOX_KHR: return "VK_PRESENT_MODE_MAILBOX_KHR";
-        case VK_PRESENT_MODE_FIFO_KHR: return "VK_PRESENT_MODE_FIFO_KHR";
+        case VK_PRESENT_MODE_MAILBOX_KHR:
+            return "VK_PRESENT_MODE_MAILBOX_KHR";
+        case VK_PRESENT_MODE_FIFO_KHR:
+            return "VK_PRESENT_MODE_FIFO_KHR";
         case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
             return "VK_PRESENT_MODE_FIFO_RELAXED_KHR";
         case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR:
@@ -2636,8 +2505,10 @@ const char*
 color_format_to_string(VkFormat fmt)
 {
     switch (fmt) {
-        case VK_FORMAT_UNDEFINED: return "VK_FORMAT_UNDEFINED";
-        case VK_FORMAT_R4G4_UNORM_PACK8: return "VK_FORMAT_R4G4_UNORM_PACK8";
+        case VK_FORMAT_UNDEFINED:
+            return "VK_FORMAT_UNDEFINED";
+        case VK_FORMAT_R4G4_UNORM_PACK8:
+            return "VK_FORMAT_R4G4_UNORM_PACK8";
         case VK_FORMAT_R4G4B4A4_UNORM_PACK16:
             return "VK_FORMAT_R4G4B4A4_UNORM_PACK16";
         case VK_FORMAT_B4G4R4A4_UNORM_PACK16:
@@ -2652,48 +2523,90 @@ color_format_to_string(VkFormat fmt)
             return "VK_FORMAT_B5G5R5A1_UNORM_PACK16";
         case VK_FORMAT_A1R5G5B5_UNORM_PACK16:
             return "VK_FORMAT_A1R5G5B5_UNORM_PACK16";
-        case VK_FORMAT_R8_UNORM: return "VK_FORMAT_R8_UNORM";
-        case VK_FORMAT_R8_SNORM: return "VK_FORMAT_R8_SNORM";
-        case VK_FORMAT_R8_USCALED: return "VK_FORMAT_R8_USCALED";
-        case VK_FORMAT_R8_SSCALED: return "VK_FORMAT_R8_SSCALED";
-        case VK_FORMAT_R8_UINT: return "VK_FORMAT_R8_UINT";
-        case VK_FORMAT_R8_SINT: return "VK_FORMAT_R8_SINT";
-        case VK_FORMAT_R8_SRGB: return "VK_FORMAT_R8_SRGB";
-        case VK_FORMAT_R8G8_UNORM: return "VK_FORMAT_R8G8_UNORM";
-        case VK_FORMAT_R8G8_SNORM: return "VK_FORMAT_R8G8_SNORM";
-        case VK_FORMAT_R8G8_USCALED: return "VK_FORMAT_R8G8_USCALED";
-        case VK_FORMAT_R8G8_SSCALED: return "VK_FORMAT_R8G8_SSCALED";
-        case VK_FORMAT_R8G8_UINT: return "VK_FORMAT_R8G8_UINT";
-        case VK_FORMAT_R8G8_SINT: return "VK_FORMAT_R8G8_SINT";
-        case VK_FORMAT_R8G8_SRGB: return "VK_FORMAT_R8G8_SRGB";
-        case VK_FORMAT_R8G8B8_UNORM: return "VK_FORMAT_R8G8B8_UNORM";
-        case VK_FORMAT_R8G8B8_SNORM: return "VK_FORMAT_R8G8B8_SNORM";
-        case VK_FORMAT_R8G8B8_USCALED: return "VK_FORMAT_R8G8B8_USCALED";
-        case VK_FORMAT_R8G8B8_SSCALED: return "VK_FORMAT_R8G8B8_SSCALED";
-        case VK_FORMAT_R8G8B8_UINT: return "VK_FORMAT_R8G8B8_UINT";
-        case VK_FORMAT_R8G8B8_SINT: return "VK_FORMAT_R8G8B8_SINT";
-        case VK_FORMAT_R8G8B8_SRGB: return "VK_FORMAT_R8G8B8_SRGB";
-        case VK_FORMAT_B8G8R8_UNORM: return "VK_FORMAT_B8G8R8_UNORM";
-        case VK_FORMAT_B8G8R8_SNORM: return "VK_FORMAT_B8G8R8_SNORM";
-        case VK_FORMAT_B8G8R8_USCALED: return "VK_FORMAT_B8G8R8_USCALED";
-        case VK_FORMAT_B8G8R8_SSCALED: return "VK_FORMAT_B8G8R8_SSCALED";
-        case VK_FORMAT_B8G8R8_UINT: return "VK_FORMAT_B8G8R8_UINT";
-        case VK_FORMAT_B8G8R8_SINT: return "VK_FORMAT_B8G8R8_SINT";
-        case VK_FORMAT_B8G8R8_SRGB: return "VK_FORMAT_B8G8R8_SRGB";
-        case VK_FORMAT_R8G8B8A8_UNORM: return "VK_FORMAT_R8G8B8A8_UNORM";
-        case VK_FORMAT_R8G8B8A8_SNORM: return "VK_FORMAT_R8G8B8A8_SNORM";
-        case VK_FORMAT_R8G8B8A8_USCALED: return "VK_FORMAT_R8G8B8A8_USCALED";
-        case VK_FORMAT_R8G8B8A8_SSCALED: return "VK_FORMAT_R8G8B8A8_SSCALED";
-        case VK_FORMAT_R8G8B8A8_UINT: return "VK_FORMAT_R8G8B8A8_UINT";
-        case VK_FORMAT_R8G8B8A8_SINT: return "VK_FORMAT_R8G8B8A8_SINT";
-        case VK_FORMAT_R8G8B8A8_SRGB: return "VK_FORMAT_R8G8B8A8_SRGB";
-        case VK_FORMAT_B8G8R8A8_UNORM: return "VK_FORMAT_B8G8R8A8_UNORM";
-        case VK_FORMAT_B8G8R8A8_SNORM: return "VK_FORMAT_B8G8R8A8_SNORM";
-        case VK_FORMAT_B8G8R8A8_USCALED: return "VK_FORMAT_B8G8R8A8_USCALED";
-        case VK_FORMAT_B8G8R8A8_SSCALED: return "VK_FORMAT_B8G8R8A8_SSCALED";
-        case VK_FORMAT_B8G8R8A8_UINT: return "VK_FORMAT_B8G8R8A8_UINT";
-        case VK_FORMAT_B8G8R8A8_SINT: return "VK_FORMAT_B8G8R8A8_SINT";
-        case VK_FORMAT_B8G8R8A8_SRGB: return "VK_FORMAT_B8G8R8A8_SRGB";
+        case VK_FORMAT_R8_UNORM:
+            return "VK_FORMAT_R8_UNORM";
+        case VK_FORMAT_R8_SNORM:
+            return "VK_FORMAT_R8_SNORM";
+        case VK_FORMAT_R8_USCALED:
+            return "VK_FORMAT_R8_USCALED";
+        case VK_FORMAT_R8_SSCALED:
+            return "VK_FORMAT_R8_SSCALED";
+        case VK_FORMAT_R8_UINT:
+            return "VK_FORMAT_R8_UINT";
+        case VK_FORMAT_R8_SINT:
+            return "VK_FORMAT_R8_SINT";
+        case VK_FORMAT_R8_SRGB:
+            return "VK_FORMAT_R8_SRGB";
+        case VK_FORMAT_R8G8_UNORM:
+            return "VK_FORMAT_R8G8_UNORM";
+        case VK_FORMAT_R8G8_SNORM:
+            return "VK_FORMAT_R8G8_SNORM";
+        case VK_FORMAT_R8G8_USCALED:
+            return "VK_FORMAT_R8G8_USCALED";
+        case VK_FORMAT_R8G8_SSCALED:
+            return "VK_FORMAT_R8G8_SSCALED";
+        case VK_FORMAT_R8G8_UINT:
+            return "VK_FORMAT_R8G8_UINT";
+        case VK_FORMAT_R8G8_SINT:
+            return "VK_FORMAT_R8G8_SINT";
+        case VK_FORMAT_R8G8_SRGB:
+            return "VK_FORMAT_R8G8_SRGB";
+        case VK_FORMAT_R8G8B8_UNORM:
+            return "VK_FORMAT_R8G8B8_UNORM";
+        case VK_FORMAT_R8G8B8_SNORM:
+            return "VK_FORMAT_R8G8B8_SNORM";
+        case VK_FORMAT_R8G8B8_USCALED:
+            return "VK_FORMAT_R8G8B8_USCALED";
+        case VK_FORMAT_R8G8B8_SSCALED:
+            return "VK_FORMAT_R8G8B8_SSCALED";
+        case VK_FORMAT_R8G8B8_UINT:
+            return "VK_FORMAT_R8G8B8_UINT";
+        case VK_FORMAT_R8G8B8_SINT:
+            return "VK_FORMAT_R8G8B8_SINT";
+        case VK_FORMAT_R8G8B8_SRGB:
+            return "VK_FORMAT_R8G8B8_SRGB";
+        case VK_FORMAT_B8G8R8_UNORM:
+            return "VK_FORMAT_B8G8R8_UNORM";
+        case VK_FORMAT_B8G8R8_SNORM:
+            return "VK_FORMAT_B8G8R8_SNORM";
+        case VK_FORMAT_B8G8R8_USCALED:
+            return "VK_FORMAT_B8G8R8_USCALED";
+        case VK_FORMAT_B8G8R8_SSCALED:
+            return "VK_FORMAT_B8G8R8_SSCALED";
+        case VK_FORMAT_B8G8R8_UINT:
+            return "VK_FORMAT_B8G8R8_UINT";
+        case VK_FORMAT_B8G8R8_SINT:
+            return "VK_FORMAT_B8G8R8_SINT";
+        case VK_FORMAT_B8G8R8_SRGB:
+            return "VK_FORMAT_B8G8R8_SRGB";
+        case VK_FORMAT_R8G8B8A8_UNORM:
+            return "VK_FORMAT_R8G8B8A8_UNORM";
+        case VK_FORMAT_R8G8B8A8_SNORM:
+            return "VK_FORMAT_R8G8B8A8_SNORM";
+        case VK_FORMAT_R8G8B8A8_USCALED:
+            return "VK_FORMAT_R8G8B8A8_USCALED";
+        case VK_FORMAT_R8G8B8A8_SSCALED:
+            return "VK_FORMAT_R8G8B8A8_SSCALED";
+        case VK_FORMAT_R8G8B8A8_UINT:
+            return "VK_FORMAT_R8G8B8A8_UINT";
+        case VK_FORMAT_R8G8B8A8_SINT:
+            return "VK_FORMAT_R8G8B8A8_SINT";
+        case VK_FORMAT_R8G8B8A8_SRGB:
+            return "VK_FORMAT_R8G8B8A8_SRGB";
+        case VK_FORMAT_B8G8R8A8_UNORM:
+            return "VK_FORMAT_B8G8R8A8_UNORM";
+        case VK_FORMAT_B8G8R8A8_SNORM:
+            return "VK_FORMAT_B8G8R8A8_SNORM";
+        case VK_FORMAT_B8G8R8A8_USCALED:
+            return "VK_FORMAT_B8G8R8A8_USCALED";
+        case VK_FORMAT_B8G8R8A8_SSCALED:
+            return "VK_FORMAT_B8G8R8A8_SSCALED";
+        case VK_FORMAT_B8G8R8A8_UINT:
+            return "VK_FORMAT_B8G8R8A8_UINT";
+        case VK_FORMAT_B8G8R8A8_SINT:
+            return "VK_FORMAT_B8G8R8A8_SINT";
+        case VK_FORMAT_B8G8R8A8_SRGB:
+            return "VK_FORMAT_B8G8R8A8_SRGB";
         case VK_FORMAT_A8B8G8R8_UNORM_PACK32:
             return "VK_FORMAT_A8B8G8R8_UNORM_PACK32";
         case VK_FORMAT_A8B8G8R8_SNORM_PACK32:
@@ -2732,27 +2645,48 @@ color_format_to_string(VkFormat fmt)
             return "VK_FORMAT_A2B10G10R10_UINT_PACK32";
         case VK_FORMAT_A2B10G10R10_SINT_PACK32:
             return "VK_FORMAT_A2B10G10R10_SINT_PACK32";
-        case VK_FORMAT_R16_UNORM: return "VK_FORMAT_R16_UNORM";
-        case VK_FORMAT_R16_SNORM: return "VK_FORMAT_R16_SNORM";
-        case VK_FORMAT_R16_USCALED: return "VK_FORMAT_R16_USCALED";
-        case VK_FORMAT_R16_SSCALED: return "VK_FORMAT_R16_SSCALED";
-        case VK_FORMAT_R16_UINT: return "VK_FORMAT_R16_UINT";
-        case VK_FORMAT_R16_SINT: return "VK_FORMAT_R16_SINT";
-        case VK_FORMAT_R16_SFLOAT: return "VK_FORMAT_R16_SFLOAT";
-        case VK_FORMAT_R16G16_UNORM: return "VK_FORMAT_R16G16_UNORM";
-        case VK_FORMAT_R16G16_SNORM: return "VK_FORMAT_R16G16_SNORM";
-        case VK_FORMAT_R16G16_USCALED: return "VK_FORMAT_R16G16_USCALED";
-        case VK_FORMAT_R16G16_SSCALED: return "VK_FORMAT_R16G16_SSCALED";
-        case VK_FORMAT_R16G16_UINT: return "VK_FORMAT_R16G16_UINT";
-        case VK_FORMAT_R16G16_SINT: return "VK_FORMAT_R16G16_SINT";
-        case VK_FORMAT_R16G16_SFLOAT: return "VK_FORMAT_R16G16_SFLOAT";
-        case VK_FORMAT_R16G16B16_UNORM: return "VK_FORMAT_R16G16B16_UNORM";
-        case VK_FORMAT_R16G16B16_SNORM: return "VK_FORMAT_R16G16B16_SNORM";
-        case VK_FORMAT_R16G16B16_USCALED: return "VK_FORMAT_R16G16B16_USCALED";
-        case VK_FORMAT_R16G16B16_SSCALED: return "VK_FORMAT_R16G16B16_SSCALED";
-        case VK_FORMAT_R16G16B16_UINT: return "VK_FORMAT_R16G16B16_UINT";
-        case VK_FORMAT_R16G16B16_SINT: return "VK_FORMAT_R16G16B16_SINT";
-        case VK_FORMAT_R16G16B16_SFLOAT: return "VK_FORMAT_R16G16B16_SFLOAT";
+        case VK_FORMAT_R16_UNORM:
+            return "VK_FORMAT_R16_UNORM";
+        case VK_FORMAT_R16_SNORM:
+            return "VK_FORMAT_R16_SNORM";
+        case VK_FORMAT_R16_USCALED:
+            return "VK_FORMAT_R16_USCALED";
+        case VK_FORMAT_R16_SSCALED:
+            return "VK_FORMAT_R16_SSCALED";
+        case VK_FORMAT_R16_UINT:
+            return "VK_FORMAT_R16_UINT";
+        case VK_FORMAT_R16_SINT:
+            return "VK_FORMAT_R16_SINT";
+        case VK_FORMAT_R16_SFLOAT:
+            return "VK_FORMAT_R16_SFLOAT";
+        case VK_FORMAT_R16G16_UNORM:
+            return "VK_FORMAT_R16G16_UNORM";
+        case VK_FORMAT_R16G16_SNORM:
+            return "VK_FORMAT_R16G16_SNORM";
+        case VK_FORMAT_R16G16_USCALED:
+            return "VK_FORMAT_R16G16_USCALED";
+        case VK_FORMAT_R16G16_SSCALED:
+            return "VK_FORMAT_R16G16_SSCALED";
+        case VK_FORMAT_R16G16_UINT:
+            return "VK_FORMAT_R16G16_UINT";
+        case VK_FORMAT_R16G16_SINT:
+            return "VK_FORMAT_R16G16_SINT";
+        case VK_FORMAT_R16G16_SFLOAT:
+            return "VK_FORMAT_R16G16_SFLOAT";
+        case VK_FORMAT_R16G16B16_UNORM:
+            return "VK_FORMAT_R16G16B16_UNORM";
+        case VK_FORMAT_R16G16B16_SNORM:
+            return "VK_FORMAT_R16G16B16_SNORM";
+        case VK_FORMAT_R16G16B16_USCALED:
+            return "VK_FORMAT_R16G16B16_USCALED";
+        case VK_FORMAT_R16G16B16_SSCALED:
+            return "VK_FORMAT_R16G16B16_SSCALED";
+        case VK_FORMAT_R16G16B16_UINT:
+            return "VK_FORMAT_R16G16B16_UINT";
+        case VK_FORMAT_R16G16B16_SINT:
+            return "VK_FORMAT_R16G16B16_SINT";
+        case VK_FORMAT_R16G16B16_SFLOAT:
+            return "VK_FORMAT_R16G16B16_SFLOAT";
         case VK_FORMAT_R16G16B16A16_UNORM:
             return "VK_FORMAT_R16G16B16A16_UNORM";
         case VK_FORMAT_R16G16B16A16_SNORM:
@@ -2761,47 +2695,76 @@ color_format_to_string(VkFormat fmt)
             return "VK_FORMAT_R16G16B16A16_USCALED";
         case VK_FORMAT_R16G16B16A16_SSCALED:
             return "VK_FORMAT_R16G16B16A16_SSCALED";
-        case VK_FORMAT_R16G16B16A16_UINT: return "VK_FORMAT_R16G16B16A16_UINT";
-        case VK_FORMAT_R16G16B16A16_SINT: return "VK_FORMAT_R16G16B16A16_SINT";
+        case VK_FORMAT_R16G16B16A16_UINT:
+            return "VK_FORMAT_R16G16B16A16_UINT";
+        case VK_FORMAT_R16G16B16A16_SINT:
+            return "VK_FORMAT_R16G16B16A16_SINT";
         case VK_FORMAT_R16G16B16A16_SFLOAT:
             return "VK_FORMAT_R16G16B16A16_SFLOAT";
-        case VK_FORMAT_R32_UINT: return "VK_FORMAT_R32_UINT";
-        case VK_FORMAT_R32_SINT: return "VK_FORMAT_R32_SINT";
-        case VK_FORMAT_R32_SFLOAT: return "VK_FORMAT_R32_SFLOAT";
-        case VK_FORMAT_R32G32_UINT: return "VK_FORMAT_R32G32_UINT";
-        case VK_FORMAT_R32G32_SINT: return "VK_FORMAT_R32G32_SINT";
-        case VK_FORMAT_R32G32_SFLOAT: return "VK_FORMAT_R32G32_SFLOAT";
-        case VK_FORMAT_R32G32B32_UINT: return "VK_FORMAT_R32G32B32_UINT";
-        case VK_FORMAT_R32G32B32_SINT: return "VK_FORMAT_R32G32B32_SINT";
-        case VK_FORMAT_R32G32B32_SFLOAT: return "VK_FORMAT_R32G32B32_SFLOAT";
-        case VK_FORMAT_R32G32B32A32_UINT: return "VK_FORMAT_R32G32B32A32_UINT";
-        case VK_FORMAT_R32G32B32A32_SINT: return "VK_FORMAT_R32G32B32A32_SINT";
+        case VK_FORMAT_R32_UINT:
+            return "VK_FORMAT_R32_UINT";
+        case VK_FORMAT_R32_SINT:
+            return "VK_FORMAT_R32_SINT";
+        case VK_FORMAT_R32_SFLOAT:
+            return "VK_FORMAT_R32_SFLOAT";
+        case VK_FORMAT_R32G32_UINT:
+            return "VK_FORMAT_R32G32_UINT";
+        case VK_FORMAT_R32G32_SINT:
+            return "VK_FORMAT_R32G32_SINT";
+        case VK_FORMAT_R32G32_SFLOAT:
+            return "VK_FORMAT_R32G32_SFLOAT";
+        case VK_FORMAT_R32G32B32_UINT:
+            return "VK_FORMAT_R32G32B32_UINT";
+        case VK_FORMAT_R32G32B32_SINT:
+            return "VK_FORMAT_R32G32B32_SINT";
+        case VK_FORMAT_R32G32B32_SFLOAT:
+            return "VK_FORMAT_R32G32B32_SFLOAT";
+        case VK_FORMAT_R32G32B32A32_UINT:
+            return "VK_FORMAT_R32G32B32A32_UINT";
+        case VK_FORMAT_R32G32B32A32_SINT:
+            return "VK_FORMAT_R32G32B32A32_SINT";
         case VK_FORMAT_R32G32B32A32_SFLOAT:
             return "VK_FORMAT_R32G32B32A32_SFLOAT";
-        case VK_FORMAT_R64_UINT: return "VK_FORMAT_R64_UINT";
-        case VK_FORMAT_R64_SINT: return "VK_FORMAT_R64_SINT";
-        case VK_FORMAT_R64_SFLOAT: return "VK_FORMAT_R64_SFLOAT";
-        case VK_FORMAT_R64G64_UINT: return "VK_FORMAT_R64G64_UINT";
-        case VK_FORMAT_R64G64_SINT: return "VK_FORMAT_R64G64_SINT";
-        case VK_FORMAT_R64G64_SFLOAT: return "VK_FORMAT_R64G64_SFLOAT";
-        case VK_FORMAT_R64G64B64_UINT: return "VK_FORMAT_R64G64B64_UINT";
-        case VK_FORMAT_R64G64B64_SINT: return "VK_FORMAT_R64G64B64_SINT";
-        case VK_FORMAT_R64G64B64_SFLOAT: return "VK_FORMAT_R64G64B64_SFLOAT";
-        case VK_FORMAT_R64G64B64A64_UINT: return "VK_FORMAT_R64G64B64A64_UINT";
-        case VK_FORMAT_R64G64B64A64_SINT: return "VK_FORMAT_R64G64B64A64_SINT";
+        case VK_FORMAT_R64_UINT:
+            return "VK_FORMAT_R64_UINT";
+        case VK_FORMAT_R64_SINT:
+            return "VK_FORMAT_R64_SINT";
+        case VK_FORMAT_R64_SFLOAT:
+            return "VK_FORMAT_R64_SFLOAT";
+        case VK_FORMAT_R64G64_UINT:
+            return "VK_FORMAT_R64G64_UINT";
+        case VK_FORMAT_R64G64_SINT:
+            return "VK_FORMAT_R64G64_SINT";
+        case VK_FORMAT_R64G64_SFLOAT:
+            return "VK_FORMAT_R64G64_SFLOAT";
+        case VK_FORMAT_R64G64B64_UINT:
+            return "VK_FORMAT_R64G64B64_UINT";
+        case VK_FORMAT_R64G64B64_SINT:
+            return "VK_FORMAT_R64G64B64_SINT";
+        case VK_FORMAT_R64G64B64_SFLOAT:
+            return "VK_FORMAT_R64G64B64_SFLOAT";
+        case VK_FORMAT_R64G64B64A64_UINT:
+            return "VK_FORMAT_R64G64B64A64_UINT";
+        case VK_FORMAT_R64G64B64A64_SINT:
+            return "VK_FORMAT_R64G64B64A64_SINT";
         case VK_FORMAT_R64G64B64A64_SFLOAT:
             return "VK_FORMAT_R64G64B64A64_SFLOAT";
         case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
             return "VK_FORMAT_B10G11R11_UFLOAT_PACK32";
         case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
             return "VK_FORMAT_E5B9G9R9_UFLOAT_PACK32";
-        case VK_FORMAT_D16_UNORM: return "VK_FORMAT_D16_UNORM";
+        case VK_FORMAT_D16_UNORM:
+            return "VK_FORMAT_D16_UNORM";
         case VK_FORMAT_X8_D24_UNORM_PACK32:
             return "VK_FORMAT_X8_D24_UNORM_PACK32";
-        case VK_FORMAT_D32_SFLOAT: return "VK_FORMAT_D32_SFLOAT";
-        case VK_FORMAT_S8_UINT: return "VK_FORMAT_S8_UINT";
-        case VK_FORMAT_D16_UNORM_S8_UINT: return "VK_FORMAT_D16_UNORM_S8_UINT";
-        case VK_FORMAT_D24_UNORM_S8_UINT: return "VK_FORMAT_D24_UNORM_S8_UINT";
+        case VK_FORMAT_D32_SFLOAT:
+            return "VK_FORMAT_D32_SFLOAT";
+        case VK_FORMAT_S8_UINT:
+            return "VK_FORMAT_S8_UINT";
+        case VK_FORMAT_D16_UNORM_S8_UINT:
+            return "VK_FORMAT_D16_UNORM_S8_UINT";
+        case VK_FORMAT_D24_UNORM_S8_UINT:
+            return "VK_FORMAT_D24_UNORM_S8_UINT";
         case VK_FORMAT_D32_SFLOAT_S8_UINT:
             return "VK_FORMAT_D32_SFLOAT_S8_UINT";
         case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
@@ -2812,18 +2775,30 @@ color_format_to_string(VkFormat fmt)
             return "VK_FORMAT_BC1_RGBA_UNORM_BLOCK";
         case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
             return "VK_FORMAT_BC1_RGBA_SRGB_BLOCK";
-        case VK_FORMAT_BC2_UNORM_BLOCK: return "VK_FORMAT_BC2_UNORM_BLOCK";
-        case VK_FORMAT_BC2_SRGB_BLOCK: return "VK_FORMAT_BC2_SRGB_BLOCK";
-        case VK_FORMAT_BC3_UNORM_BLOCK: return "VK_FORMAT_BC3_UNORM_BLOCK";
-        case VK_FORMAT_BC3_SRGB_BLOCK: return "VK_FORMAT_BC3_SRGB_BLOCK";
-        case VK_FORMAT_BC4_UNORM_BLOCK: return "VK_FORMAT_BC4_UNORM_BLOCK";
-        case VK_FORMAT_BC4_SNORM_BLOCK: return "VK_FORMAT_BC4_SNORM_BLOCK";
-        case VK_FORMAT_BC5_UNORM_BLOCK: return "VK_FORMAT_BC5_UNORM_BLOCK";
-        case VK_FORMAT_BC5_SNORM_BLOCK: return "VK_FORMAT_BC5_SNORM_BLOCK";
-        case VK_FORMAT_BC6H_UFLOAT_BLOCK: return "VK_FORMAT_BC6H_UFLOAT_BLOCK";
-        case VK_FORMAT_BC6H_SFLOAT_BLOCK: return "VK_FORMAT_BC6H_SFLOAT_BLOCK";
-        case VK_FORMAT_BC7_UNORM_BLOCK: return "VK_FORMAT_BC7_UNORM_BLOCK";
-        case VK_FORMAT_BC7_SRGB_BLOCK: return "VK_FORMAT_BC7_SRGB_BLOCK";
+        case VK_FORMAT_BC2_UNORM_BLOCK:
+            return "VK_FORMAT_BC2_UNORM_BLOCK";
+        case VK_FORMAT_BC2_SRGB_BLOCK:
+            return "VK_FORMAT_BC2_SRGB_BLOCK";
+        case VK_FORMAT_BC3_UNORM_BLOCK:
+            return "VK_FORMAT_BC3_UNORM_BLOCK";
+        case VK_FORMAT_BC3_SRGB_BLOCK:
+            return "VK_FORMAT_BC3_SRGB_BLOCK";
+        case VK_FORMAT_BC4_UNORM_BLOCK:
+            return "VK_FORMAT_BC4_UNORM_BLOCK";
+        case VK_FORMAT_BC4_SNORM_BLOCK:
+            return "VK_FORMAT_BC4_SNORM_BLOCK";
+        case VK_FORMAT_BC5_UNORM_BLOCK:
+            return "VK_FORMAT_BC5_UNORM_BLOCK";
+        case VK_FORMAT_BC5_SNORM_BLOCK:
+            return "VK_FORMAT_BC5_SNORM_BLOCK";
+        case VK_FORMAT_BC6H_UFLOAT_BLOCK:
+            return "VK_FORMAT_BC6H_UFLOAT_BLOCK";
+        case VK_FORMAT_BC6H_SFLOAT_BLOCK:
+            return "VK_FORMAT_BC6H_SFLOAT_BLOCK";
+        case VK_FORMAT_BC7_UNORM_BLOCK:
+            return "VK_FORMAT_BC7_UNORM_BLOCK";
+        case VK_FORMAT_BC7_SRGB_BLOCK:
+            return "VK_FORMAT_BC7_SRGB_BLOCK";
         case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
             return "VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK";
         case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
@@ -3024,8 +2999,10 @@ color_format_to_string(VkFormat fmt)
             return "VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG";
         case VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG:
             return "VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG";
-        case VK_FORMAT_R16G16_S10_5_NV: return "VK_FORMAT_R16G16_S10_5_NV";
-        case VK_FORMAT_MAX_ENUM: return "VK_FORMAT_MAX_ENUM";
+        case VK_FORMAT_R16G16_S10_5_NV:
+            return "VK_FORMAT_R16G16_S10_5_NV";
+        case VK_FORMAT_MAX_ENUM:
+            return "VK_FORMAT_MAX_ENUM";
     }
     return "Unrecognized VkFormat";
 }
@@ -3066,7 +3043,8 @@ color_space_to_string(VkColorSpaceKHR space)
             return "VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT";
         case VK_COLOR_SPACE_DISPLAY_NATIVE_AMD:
             return "VK_COLOR_SPACE_DISPLAY_NATIVE_AMD";
-        case VK_COLOR_SPACE_MAX_ENUM_KHR: return "VK_COLOR_SPACE_MAX_ENUM_KHR";
+        case VK_COLOR_SPACE_MAX_ENUM_KHR:
+            return "VK_COLOR_SPACE_MAX_ENUM_KHR";
     }
     return "Unrecognized VkColorSpaceKHR";
 }
@@ -3091,9 +3069,9 @@ query_size(uint32_t* width, uint32_t* height)
 {
     int w, h;
     SDL_Vulkan_GetDrawableSize(vulkano_sdl_window, &w, &h);
-    w       = (w < 0) ? 720 : w;
-    h       = (h < 0) ? 480 : h;
-    *width  = (uint32_t)w;
+    w = (w < 0) ? 720 : w;
+    h = (h < 0) ? 480 : h;
+    *width = (uint32_t)w;
     *height = (uint32_t)h;
 }
 
@@ -3102,8 +3080,8 @@ vulkano_from_sdl(
     struct vulkano_config vkcfg, struct SDL_Window* window, VulkanoError* error
 )
 {
-    vulkano_sdl_window      = window;
-    vkcfg.surface_creation  = create_surface;
+    vulkano_sdl_window = window;
+    vkcfg.surface_creation = create_surface;
     vkcfg.query_window_size = query_size;
 
     struct vulkano vk = {0};
@@ -3113,14 +3091,12 @@ vulkano_from_sdl(
     // required instance extensions
     struct string_array user_instance_extensions = {
         .count = vkcfg.instance_extensions_count,
-        .data  = vkcfg.instance_extensions,
+        .data = vkcfg.instance_extensions,
     };
-    struct string_array sdl_required_extensions      = {0};
+    struct string_array sdl_required_extensions = {0};
     struct string_array combined_instance_extensions = {0};
 
-    if (!SDL_Vulkan_GetInstanceExtensions(
-            window, &sdl_required_extensions.count, NULL
-        )) {
+    if (!SDL_Vulkan_GetInstanceExtensions(window, &sdl_required_extensions.count, NULL)) {
         *error = VULKANO_ERROR_CODE_FATAL_ERROR;
         VULKANO_ERROR(SDL_GetError());
         return vk;
@@ -3136,11 +3112,10 @@ vulkano_from_sdl(
         goto cleanup;
     }
 
-    combined_instance_extensions = combine_string_arrays_unique(
-        user_instance_extensions, sdl_required_extensions
-    );
+    combined_instance_extensions =
+        combine_string_arrays_unique(user_instance_extensions, sdl_required_extensions);
     if (*error) goto cleanup;
-    vkcfg.instance_extensions       = combined_instance_extensions.data;
+    vkcfg.instance_extensions = combined_instance_extensions.data;
     vkcfg.instance_extensions_count = combined_instance_extensions.count;
 
     // initialize vulkano
@@ -3187,7 +3162,7 @@ vulkano_sdl_create(
     }
 
     vksdl.sdl = vulkano_sdl_window;
-    vksdl.vk  = vulkano_from_sdl(vkcfg, vulkano_sdl_window, error);
+    vksdl.vk = vulkano_from_sdl(vkcfg, vulkano_sdl_window, error);
     return vksdl;
 }
 
