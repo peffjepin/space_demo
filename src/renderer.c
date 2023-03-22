@@ -25,13 +25,13 @@ struct ubo {
 
 struct demo_renderer {
     struct vulkano* vk;
+    uint64_t        ticks;
 
     struct vec3 camera_position;
     struct vec3 camera_direction;
-
-    struct ubo  ubo;
     struct vec3 rotation;
     float       rotation_speed;
+    struct ubo  ubo;
 
     size_t                ubo_size_per_frame;
     struct vulkano_buffer uniform_buffer;
@@ -512,6 +512,7 @@ renderer_create(struct vulkano* vk)
     }
     if (error) exit(EXIT_FAILURE);
 
+    renderer->ticks = (uint64_t)SDL_GetTicks();
     return renderer;
 }
 
@@ -558,12 +559,17 @@ renderer_draw(
     uint32_t              viewport_height
 )
 {
+    uint64_t ticks                      = (uint64_t)SDL_GetTicks();
+    uint64_t ticks_since_last_draw_call = ticks - renderer->ticks;
+    renderer->ticks                     = ticks;
+
     VulkanoError error = 0;
 
     renderer->ubo.proj = projection_matrix(
         60.0f, (float)viewport_width / (float)viewport_height, 0.1f, 1000.0f
     );
-    renderer->rotation.y += renderer->rotation_speed / 100.f;
+    renderer->rotation.y +=
+        (float)ticks_since_last_draw_call * renderer->rotation_speed / 1000.f;
     renderer->ubo.model = model_matrix(
         (struct vec3){0.0f, 0.0f, 0.0f},
         (struct vec3){1.0f, 1.0f, 1.0f},
@@ -670,7 +676,12 @@ renderer_draw(
     vkCmdSetViewport(cmd, 0, 1, &viewport);
     vkCmdSetScissor(cmd, 0, 1, &scissor);
     vkCmdDrawIndexed(
-        cmd, (uint32_t)renderer->buffered_planets[frame_index].index_count, 1, 0, 0, 0
+        cmd,
+        (uint32_t)renderer->buffered_planets[frame_index].index_count,
+        1,
+        0,
+        0,
+        0
     );
 
     static const VkPipelineStageFlags STAGE_MASK =
